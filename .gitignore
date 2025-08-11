@@ -1,0 +1,14 @@
+# Ignore appsettings files with secrets
+appsettings.json
+appsettings.Development.json
+
+# Build output
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+
+# Visual Studio cache
+.vs/
