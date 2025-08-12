@@ -1,6 +1,8 @@
 ﻿using JewelrySite.BL;
+using JewelrySite.DAL;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace JewelrySite.Controllers
 {
@@ -8,39 +10,47 @@ namespace JewelrySite.Controllers
 	[ApiController]
 	public class JewelryItemController : ControllerBase
 	{
+
+		private readonly JewelryItemService _service;
+
+		public JewelryItemController(JewelryItemService service) { 
+			_service = service;
+		}
+
 		[HttpGet]
-		public ActionResult<List<JewelryItem>> GetJewerlyItems()
+		public async Task<ActionResult<List<JewelryItem>>> GetJewerlyItems()
 		{
-			return Ok(JewelryItem.GetJewelryItems());
+			List<JewelryItem> items = await _service.GetAllJewelry();
+			return Ok(items);
 		}
 
 		[HttpGet("{id}")] 
-		public ActionResult<JewelryItem> GetJewerlyItem(int id) 
+		public async Task<ActionResult<JewelryItem>> GetJewerlyById(int id) 
 		{
-			JewelryItem j = JewelryItem.GetJewelryItemById(id);
+			JewelryItem j = await _service.GetJewelryById(id);
 			if (j == null) {return NotFound();}
 			return Ok(j);
 		}
 
 		[HttpPost]
-		public ActionResult<JewelryItem> AddJewerlyItem(JewelryItem j ) 
-		{ 
-			//if j is null BadReq otherwise Ok
-			return JewelryItem.AddJewelryItem(j) != null ? CreatedAtAction(nameof(AddJewerlyItem),j) : BadRequest();
+		public async Task<ActionResult<JewelryItem>> AddJewerlyItem(JewelryItem j)
+		{
+			
+			return await _service.AddJewelry(j) != null ? CreatedAtAction(nameof(AddJewerlyItem), j) : BadRequest();
 		}
 
-		[HttpPut]
-		public ActionResult UpdateJewerlyItem(int id, JewelryItem updatedJewerly)
-		{
-			if (JewelryItem.UpdateJewelryItem(id, updatedJewerly) != null) { return NoContent();}
-			return BadRequest();
-		}
+		//[HttpPut]
+		//public ActionResult UpdateJewerlyItem(int id, JewelryItem updatedJewerly)
+		//{
+		//	if (JewelryItem.UpdateJewelryItem(id, updatedJewerly) != null) { return NoContent();}
+		//	return BadRequest();
+		//}
 
-		[HttpDelete]
-		public ActionResult DeleteJewerlyItem(int id)
-		{
-			if (JewelryItem.DeleteJewelryItem(id)) {return NoContent();}
-			return BadRequest();
-		}
+		//[HttpDelete]
+		//public ActionResult DeleteJewerlyItem(int id)
+		//{
+		//	if (JewelryItem.DeleteJewelryItem(id)) {return NoContent();}
+		//	return BadRequest();
+		//}
 	}
 }
