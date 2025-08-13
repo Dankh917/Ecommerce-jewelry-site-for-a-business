@@ -20,14 +20,14 @@ namespace JewelrySite.Controllers
 		[HttpGet]
 		public async Task<ActionResult<List<JewelryItem>>> GetJewerlyItems()
 		{
-			List<JewelryItem> items = await _service.GetAllJewelry();
+			List<JewelryItem> items = await _service.GetAllJewelryItems();
 			return Ok(items);
 		}
 
 		[HttpGet("{id}")] 
 		public async Task<ActionResult<JewelryItem>> GetJewerlyById(int id) 
 		{
-			JewelryItem j = await _service.GetJewelryById(id);
+			JewelryItem j = await _service.GetJewelryItemById(id);
 			if (j == null) {return NotFound();}
 			return Ok(j);
 		}
@@ -36,21 +36,21 @@ namespace JewelrySite.Controllers
 		public async Task<ActionResult<JewelryItem>> AddJewerlyItem(JewelryItem j)
 		{
 			
-			return await _service.AddJewelry(j) != null ? CreatedAtAction(nameof(AddJewerlyItem), j) : BadRequest();
+			return await _service.AddJewelryItem(j) != null ? CreatedAtAction(nameof(AddJewerlyItem), j) : BadRequest();
 		}
 
-		//[HttpPut]
-		//public ActionResult UpdateJewerlyItem(int id, JewelryItem updatedJewerly)
-		//{
-		//	if (JewelryItem.UpdateJewelryItem(id, updatedJewerly) != null) { return NoContent();}
-		//	return BadRequest();
-		//}
+		[HttpPut]
+		public async Task<ActionResult> UpdateJewerlyItem(int id, JewelryItem updatedJewerly)
+		{
+			if (await _service.UpdateJewelryItem(id, updatedJewerly) != null) { return  NoContent(); }
+			return BadRequest();
+		}
 
-		//[HttpDelete]
-		//public ActionResult DeleteJewerlyItem(int id)
-		//{
-		//	if (JewelryItem.DeleteJewelryItem(id)) {return NoContent();}
-		//	return BadRequest();
-		//}
+		[HttpDelete]
+		public async Task<ActionResult> DeleteJewerlyItem(int id)
+		{
+			if (await _service.DeleteJewelryItem(id) != null) { return NoContent(); }
+			return BadRequest();
+		}
 	}
 }
