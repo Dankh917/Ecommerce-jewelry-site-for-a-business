@@ -17,6 +17,7 @@ namespace JewelrySite
 
             builder.Services.AddDbContext<JewerlyStoreDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionDB")));
 			builder.Services.AddScoped<JewelryItemService>();
+			builder.Services.AddScoped<AuthService>();
 
 			var app = builder.Build();
 
