@@ -1,6 +1,7 @@
 ﻿using JewelrySite.BL;
 using JewelrySite.DAL;
 using JewelrySite.DTO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +39,18 @@ namespace JewelrySite.Controllers
 			return Ok(token);
 		}
 
-			
+		[Authorize]
+		[HttpGet]
+		public IActionResult AuthOnly()
+		{
+			return Ok("You are authenticated and can access this endpoint.");
+		}
+		
+		[Authorize(Roles ="Admin")]
+		[HttpGet("Admin-only")]
+		public IActionResult AdminOnly()
+		{
+			return Ok("You are authenticated and can access this endpoint.");
+		}
 	}
 }
