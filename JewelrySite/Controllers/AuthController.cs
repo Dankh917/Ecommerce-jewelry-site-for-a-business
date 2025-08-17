@@ -32,11 +32,20 @@ namespace JewelrySite.Controllers
 		}
 
 		[HttpPost("login")]
-		public async Task<ActionResult<string>> Login(UserDto request)
+		public async Task<ActionResult<LoginResponseDto>> Login(UserDto request)
 		{
-			string token = await _service.LoginAsync(request);
-			if (token == null) { return BadRequest("Invalid username or password");}
-			return Ok(token);
+			LoginResponseDto tokens = await _service.LoginAsync(request);
+			if (tokens == null) { return BadRequest("Invalid username or password");}
+			return Ok(tokens);
+		}
+
+		[HttpPost("refresh-token")]
+		public async Task<ActionResult<LoginResponseDto>> RefreshToken(RefreshTokenDto request)
+		{
+			var result = await _service.RefreshTokensAsync(request);
+			if (result is null|| result.RefreshToken is null) { return Unauthorized("Invalid refresh token"); }
+
+			return Ok(result);
 		}
 
 		[Authorize]
