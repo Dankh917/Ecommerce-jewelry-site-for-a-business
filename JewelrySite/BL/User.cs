@@ -10,6 +10,8 @@
 		public DateTime CreatedAt { get; set; } = DateTime.Now;
 		public DateTime? LastLogin { get; set; }
 		public bool IsActive { get; set; } = true;
+		public string? RefreshToken { get; set; } // For password reset functionality
+		public DateTime? RefreshTokenExpirationDate { get; set; } // Expiration time for the reset token
 	}
 }
  
