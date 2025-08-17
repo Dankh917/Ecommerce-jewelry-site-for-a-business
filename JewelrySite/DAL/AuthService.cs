@@ -1,4 +1,5 @@
-﻿using JewelrySite.BL;
+﻿using Azure.Core;
+using JewelrySite.BL;
 using JewelrySite.DTO;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -107,7 +108,12 @@ namespace JewelrySite.DAL
 		private async Task<string> CreateAndSaveRefreshToken(User user)
 		{
 			string refreshToken = CreateRefreshToken();
-			user.RefreshToken = refreshToken;
+
+
+			string hashedRefreshToken = new PasswordHasher<User>()
+				.HashPassword(user, refreshToken);
+
+			user.RefreshToken = hashedRefreshToken;
 			user.RefreshTokenExpirationDate = DateTime.UtcNow.AddDays(7);
 			_db.Users.Update(user);
 			await _db.SaveChangesAsync();
@@ -118,11 +124,14 @@ namespace JewelrySite.DAL
 		public async Task<User?> ValidateRefreshToken(int userID, string refreshToken)
 		{
 			User user = await _db.Users.FindAsync(userID);
-			
-			if (user is null || user.RefreshToken != refreshToken || user.RefreshTokenExpirationDate < DateTime.UtcNow )
-			{
-				return null;
-			}
+
+			if (user is null|| user.RefreshTokenExpirationDate < DateTime.UtcNow) { return null; }
+
+			PasswordHasher<User> hasher = new PasswordHasher<User>();
+			PasswordVerificationResult result = hasher.VerifyHashedPassword(user, user.RefreshToken, refreshToken);
+
+			if (result == PasswordVerificationResult.Failed) {return null;}
+				
 			return user;
 		}
 
