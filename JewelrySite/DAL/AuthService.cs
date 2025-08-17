@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace JewelrySite.DAL
@@ -22,20 +23,32 @@ namespace JewelrySite.DAL
 			_db = db;
 		}
 
-		public async Task<string?> LoginAsync(UserDto request)
+		public async Task<LoginResponseDto?> LoginAsync(UserDto request)
 		{
-			User user =  _db.Users.FirstOrDefault(u => u.Username == request.Username);
-			
+			User user = _db.Users.FirstOrDefault(u => u.Username == request.Username);
+
 			if (user == null) { return null; }
-			
+
 			if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
 			{
 				return null;
 			}
 
-			return CreateToken(user);
-			
+			LoginResponseDto response = await CreateTokenResponse(user);
+
+			return response;
 		}
+
+		private async Task<LoginResponseDto> CreateTokenResponse(User user)
+		{
+			return new LoginResponseDto
+			{
+				JWTToken = CreateJWTToken(user),
+				RefreshToken = await CreateAndSaveRefreshToken(user)
+			};
+		}
+
+
 		public async Task<User?> RegisterAsync(UserDto request)
 		{
 			if (await _db.Users.AnyAsync(u => u.Username == request.Username)) {
@@ -44,7 +57,7 @@ namespace JewelrySite.DAL
 			
 			User user = new User();
 			
-			string hashedPassword = new PasswordHasher<User >()
+			string hashedPassword = new PasswordHasher<User>()
 				.HashPassword(user, request.Password);
 
 			user.Username = request.Username;
@@ -58,7 +71,7 @@ namespace JewelrySite.DAL
 		}
 
 
-		private string CreateToken(User user)
+		private string CreateJWTToken(User user)
 		{
 			var claims = new List<Claim>
 			{
@@ -75,11 +88,52 @@ namespace JewelrySite.DAL
 				issuer: _configuration.GetValue<string>("Issuer"),
 				audience: _configuration.GetValue<string>("Audience"),
 				claims: claims,
-				expires: DateTime.UtcNow.AddDays(1),
+				expires: DateTime.UtcNow.AddMinutes(15),
 				signingCredentials: creds
 				);
 
 			return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
 		}
+
+		private string CreateRefreshToken()
+		{
+			byte[] randomNumber = new byte[32];
+			using RandomNumberGenerator rng = RandomNumberGenerator.Create();
+			
+			rng.GetBytes(randomNumber);
+			return Convert.ToBase64String(randomNumber);
+		}
+
+		private async Task<string> CreateAndSaveRefreshToken(User user)
+		{
+			string refreshToken = CreateRefreshToken();
+			user.RefreshToken = refreshToken;
+			user.RefreshTokenExpirationDate = DateTime.UtcNow.AddDays(7);
+			_db.Users.Update(user);
+			await _db.SaveChangesAsync();
+			return refreshToken;
+		}
+
+
+		public async Task<User?> ValidateRefreshToken(int userID, string refreshToken)
+		{
+			User user = await _db.Users.FindAsync(userID);
+			
+			if (user is null || user.RefreshToken != refreshToken || user.RefreshTokenExpirationDate < DateTime.UtcNow )
+			{
+				return null;
+			}
+			return user;
+		}
+
+		public async Task<LoginResponseDto?> RefreshTokensAsync(RefreshTokenDto request) { 
+			
+			var user = await ValidateRefreshToken(request.UserId, request.RefreshToken);
+
+			if (user is null) { return null; }
+			 
+			return await CreateTokenResponse(user);
+		}
+
 	}
 }
