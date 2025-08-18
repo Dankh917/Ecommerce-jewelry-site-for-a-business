@@ -22,6 +22,56 @@ namespace JewelrySite.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("JewelrySite.BL.Cart", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Carts");
+                });
+
+            modelBuilder.Entity("JewelrySite.BL.CartItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("cartId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("jewelryItemId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("priceAtAddTime")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("cartId");
+
+                    b.HasIndex("jewelryItemId");
+
+                    b.ToTable("CartItems");
+                });
+
             modelBuilder.Entity("JewelrySite.BL.JewelryImage", b =>
                 {
                     b.Property<int>("Id")
@@ -149,6 +199,36 @@ namespace JewelrySite.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("JewelrySite.BL.Cart", b =>
+                {
+                    b.HasOne("JewelrySite.BL.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("JewelrySite.BL.CartItem", b =>
+                {
+                    b.HasOne("JewelrySite.BL.Cart", "cart")
+                        .WithMany("Items")
+                        .HasForeignKey("cartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("JewelrySite.BL.JewelryItem", "jewelryItem")
+                        .WithMany()
+                        .HasForeignKey("jewelryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("cart");
+
+                    b.Navigation("jewelryItem");
+                });
+
             modelBuilder.Entity("JewelrySite.BL.JewelryImage", b =>
                 {
                     b.HasOne("JewelrySite.BL.JewelryItem", null)
@@ -156,6 +236,11 @@ namespace JewelrySite.Migrations
                         .HasForeignKey("JewelryItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("JewelrySite.BL.Cart", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("JewelrySite.BL.JewelryItem", b =>
