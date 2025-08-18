@@ -1,5 +1,8 @@
-﻿namespace JewelrySite.BL
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace JewelrySite.BL
 {
+	
 	public class JewelryImage
 	{
 		public int Id { get; set; }
