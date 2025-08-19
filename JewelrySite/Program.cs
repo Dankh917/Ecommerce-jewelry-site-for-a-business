@@ -20,7 +20,11 @@ namespace JewelrySite
 
             builder.Services.AddDbContext<JewerlyStoreDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionDB")));
 
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+			builder.Services.AddScoped<CartService>();
+			builder.Services.AddScoped<JewelryItemService>();
+			builder.Services.AddScoped<AuthService>();
+
+			builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 				.AddJwtBearer(options =>
 				{
 					options.TokenValidationParameters = new TokenValidationParameters
@@ -34,9 +38,6 @@ namespace JewelrySite
 						IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Token"]!))
 					};
 				});
-
-			builder.Services.AddScoped<JewelryItemService>();
-            builder.Services.AddScoped<AuthService>();
 
 			var app = builder.Build();
 
