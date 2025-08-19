@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace JewelrySite.BL
 {
@@ -6,6 +7,7 @@ namespace JewelrySite.BL
 	{
 	    public  int Id { get; set; }
 		public required int cartId { get; set; }
+		[JsonIgnore]
 		public  Cart cart { get; set; }
 		public required int jewelryItemId { get; set; }
 		public JewelryItem jewelryItem { get; set; } //not a col in db but a van property
