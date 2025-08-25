@@ -12,3 +12,8 @@ obj/
 
 # Visual Studio cache
 .vs/
+
+# Ignore all env files, but keep the template
+**/.env
+**/.env.*
+!**/.env.example

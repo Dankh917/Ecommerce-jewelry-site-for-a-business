@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35913.81 d17.13
+VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JewelrySite", "JewelrySite\JewelrySite.csproj", "{5C115CE4-9537-4786-BDA8-F2869A703A6D}"
+EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "jewelrysite-frontend", "JewelrySite-FrontEnd\jewelrysite-frontend.esproj", "{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,12 @@ Global
 		{5C115CE4-9537-4786-BDA8-F2869A703A6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5C115CE4-9537-4786-BDA8-F2869A703A6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5C115CE4-9537-4786-BDA8-F2869A703A6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A172422-BB9F-6D7D-B721-7E9BE2FC1422}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
