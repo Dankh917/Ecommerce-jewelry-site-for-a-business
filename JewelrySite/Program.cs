@@ -12,9 +12,20 @@ namespace JewelrySite
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+			builder.Services.AddCors(options =>
+			{
+				options.AddPolicy("AllowReactApp",
+					policy =>
+					{
+						policy.WithOrigins("http://localhost:51600") // your React dev server
+							  .AllowAnyHeader()
+							  .AllowAnyMethod();
+					});
+			});
 
-            builder.Services.AddControllers();
+
+
+			builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
@@ -41,8 +52,10 @@ namespace JewelrySite
 
 			var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+			app.UseCors("AllowReactApp");
+
+			// Configure the HTTP request pipeline.
+			if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
                 app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Jewel api")); //add to config file
@@ -50,7 +63,8 @@ namespace JewelrySite
 
             app.UseHttpsRedirection();
 
-            app.UseAuthorization();
+			app.UseAuthentication();
+			app.UseAuthorization();
 
 
             app.MapControllers();
