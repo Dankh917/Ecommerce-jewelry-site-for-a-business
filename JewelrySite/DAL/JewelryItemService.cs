@@ -1,4 +1,5 @@
 ﻿using JewelrySite.BL;
+using JewelrySite.DTO;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 
@@ -13,14 +14,30 @@ namespace JewelrySite.DAL
 			_db = db;
 		}
 
-		public async Task<List<JewelryItem>> GetAllJewelryItems()
+		public async Task<List<JewelryItemCatalogDto>> GetAllJewelryItems()
 		{
-			return await _db.JewelryItems
-				.AsNoTracking()
-				.Include(j=>j.GalleryImages)
-				.ToListAsync();
+			var items = await _db.JewelryItems
+			.AsNoTracking()
+			.OrderBy(j => j.Id)
+			.Select(j => new JewelryItemCatalogDto(
+				j.Id,
+				j.Name,
+				j.Description,
+				j.Category,
+				j.Collection,
+				j.Price,
+				j.StockQuantity,
+				j.IsAvailable,
+				j.MainImageUrl,
+				j.Color,
+				j.SizeCM
+			))
+			.ToListAsync();
+
+			return items;
+
 		}
-		
+
 		public async Task<JewelryItem> GetJewelryItemById(int id)
 		{
 			return await _db.JewelryItems

@@ -1,5 +1,6 @@
 ﻿using JewelrySite.BL;
 using JewelrySite.DAL;
+using JewelrySite.DTO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -18,9 +19,9 @@ namespace JewelrySite.Controllers
 		}
 
 		[HttpGet]
-		public async Task<ActionResult<List<JewelryItem>>> GetJewerlyItems()
+		public async Task<ActionResult<List<JewelryItemCatalogDto>>> GetJewerlyItems()
 		{
-			List<JewelryItem> items = await _service.GetAllJewelryItems();
+			List<JewelryItemCatalogDto> items = await _service.GetAllJewelryItems();
 			return Ok(items);
 		}
 
