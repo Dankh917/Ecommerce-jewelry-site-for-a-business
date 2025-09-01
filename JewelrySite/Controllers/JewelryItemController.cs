@@ -53,5 +53,19 @@ namespace JewelrySite.Controllers
 			if (await _service.DeleteJewelryItem(id) != null) { return NoContent(); }
 			return BadRequest();
 		}
+
+		[HttpGet("categories")]
+		public async Task<ActionResult<List<string>>> GetCategories()
+		{
+			var categories = await _service.GetAllCategories();
+			return Ok(categories);
+		}
+
+		[HttpGet("collections")]
+		public async Task<ActionResult<List<string>>> GetCollections()
+		{
+			var collections = await _service.GetAllCollections();
+			return Ok(collections);
+		}
 	}
 }
