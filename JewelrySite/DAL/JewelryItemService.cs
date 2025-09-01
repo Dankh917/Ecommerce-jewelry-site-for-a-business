@@ -107,5 +107,25 @@ namespace JewelrySite.DAL
 
 			return item;
 		}
+
+		public async Task<List<string>> GetAllCategories()
+		{
+			return await _db.JewelryItems
+				.Where(j => !string.IsNullOrEmpty(j.Category))
+				.Select(j => j.Category)
+				.Distinct()
+				.OrderBy(c => c)
+				.ToListAsync();
+		}
+
+		public async Task<List<string>> GetAllCollections()
+		{
+			return await _db.JewelryItems
+				.Where(j => !string.IsNullOrEmpty(j.Collection))
+				.Select(j => j.Collection)
+				.Distinct()
+				.OrderBy(c => c)
+				.ToListAsync();
+		}
 	}
 }
