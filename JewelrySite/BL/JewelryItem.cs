@@ -5,7 +5,6 @@ namespace JewelrySite.BL
 {
 	public class JewelryItem
 	{
-
 		public int Id { get; set; }
 		public required string Name { get; set; }
 		public required string Description { get; set; }
@@ -22,13 +21,14 @@ namespace JewelrySite.BL
 		public string? VideoUrl { get; set; }
 		public string? VideoPosterUrl { get; set; }
 		public int? VideoDurationSeconds { get; set; }
+		public decimal ShippingPrice { get; set; }
 
-
-		public JewelryItem(int id, string name, string description, string category, string? collection, decimal? weightGrams, string? color,
-			string? sizeCM, decimal? price, int? stockQuantity, bool? isAvailable, string? mainImageUrl, List<JewelryImage>? galleryImage,
-			string? videoUrl, string? videoPosterUrl, int? videoDurationSeconds)
+		public JewelryItem(
+			int id, string name, string description, string category, string? collection, decimal? weightGrams,
+			string? color, string? sizeCM, decimal? price, int? stockQuantity, bool? isAvailable, string? mainImageUrl,
+			List<JewelryImage>? galleryImage, string? videoUrl, string? videoPosterUrl, int? videoDurationSeconds,
+			decimal shippingPrice )
 		{
-
 			Id = id;
 			Name = name;
 			Description = description;
@@ -45,11 +45,11 @@ namespace JewelrySite.BL
 			VideoUrl = videoUrl;
 			VideoPosterUrl = videoPosterUrl;
 			VideoDurationSeconds = videoDurationSeconds;
+			ShippingPrice = shippingPrice;
 		}
 
 		public JewelryItem() { }
-
 	}
-
 }
+
 
