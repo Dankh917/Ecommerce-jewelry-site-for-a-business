@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import JewelryCard from "../components/JewelryCard";
 import { getCatalog, getCategories, getCollections } from "../api/jewelry";
 import type { JewelryItemForCard } from "../types/JewelryItemForCard";
+import Header from "../components/Header";
 
 export default function CatalogPage() {
     const [sortType, setSortType] = useState<"category" | "collection" | "">("");
@@ -46,6 +47,7 @@ export default function CatalogPage() {
 
     return (
         <div className="min-h-screen p-6" style={{ backgroundColor: "#fbfbfa" }}>
+            <Header />
             {/* Header Section */}
             <div className="mb-8 flex flex-col items-center">
                 <h1
