@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import JewelryCard from "../components/JewelryCard";
 import { getCatalog, getCategories, getCollections } from "../api/jewelry";
 import type { JewelryItemForCard } from "../types/JewelryItemForCard";
@@ -11,6 +11,8 @@ export default function CatalogPage() {
     const [collections, setCollections] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const BRAND = "#6B8C8E";
 
     useEffect(() => {
         (async () => {
@@ -38,7 +40,7 @@ export default function CatalogPage() {
         return true;
     });
 
-    if (loading) return <main className="p-4">Loading…</main>;
+    if (loading) return <main className="p-4">Loading</main>;
     if (error) return <main className="p-4 text-red-600">{error}</main>;
     if (!items.length) return <main className="p-4">No items yet.</main>;
 
@@ -47,16 +49,15 @@ export default function CatalogPage() {
             {/* Header Section */}
             <div className="mb-8 flex flex-col items-center">
                 <h1
-                    className="text-4xl font-extrabold mb-2 text-center w-full"
-                    style={{
-                        color: "#bfa16a",
-                        textShadow: "0 2px 8px #e9e2d0",
-                        letterSpacing: "0.05em",
-                    }}
+                    className="text-3xl font-extrabold tracking-wide mb-3 text-center w-full"
+                    style={{ color: BRAND, textShadow: "0 1px 0 rgba(0,0,0,0.05)" }}
                 >
                     Catalog
                 </h1>
-                <div className="w-16 h-1 rounded bg-[#bfa16a] mb-4"></div>
+                <div
+                    className="h-1.5 w-28 rounded-full mb-4"
+                    style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND}80)` }}
+                ></div>
                 <div className="flex gap-2 mt-2">
                     <select
                         className="select select-bordered"
