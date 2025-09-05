@@ -10,4 +10,5 @@ export interface JewelryItemForCard {
     mainImageUrl: string;
     color: string;
     sizeCM: string;
+    shippingPrice: number;
 }
