@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getJewelryItemById } from "../api/jewelry";
+import Header from "../components/Header";
 
 export default function JewelryItemPage() {
     const { id } = useParams<{ id: string }>();
@@ -62,11 +63,11 @@ export default function JewelryItemPage() {
         }
     };
 
-    if (loading) return <main className="p-4">Loading…</main>;
+    if (loading) return <main className="p-4">LoadingÂ…</main>;
     if (error) return <main className="p-4 text-red-600">{error}</main>;
     if (!item) return <main className="p-4">No item found.</main>;
 
-    // Price formatting (always two decimals, “Price: NN.NN USD”)
+    // Price formatting (always two decimals, Â“Price: NN.NN USDÂ”)
     const formattedPrice = item?.price != null ? Number(item.price).toFixed(2) : null;
 
     // Shipping formatting
@@ -76,6 +77,7 @@ export default function JewelryItemPage() {
 
     return (
         <div className="min-h-screen p-8 bg-[#fbfbfa] flex flex-col items-center">
+            <Header />
             {/* Title with subtle effect + underline bar */}
             <h1
                 className="text-3xl font-extrabold tracking-wide mb-3 text-center w-full"
