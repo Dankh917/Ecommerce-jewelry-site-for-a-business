@@ -30,7 +30,8 @@ namespace JewelrySite.DAL
 				j.IsAvailable,
 				j.MainImageUrl,
 				j.Color,
-				j.SizeCM
+				j.SizeCM,
+				j.ShippingPrice
 			))
 			.ToListAsync();
 
