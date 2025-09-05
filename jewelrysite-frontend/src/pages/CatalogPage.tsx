@@ -13,7 +13,7 @@ export default function CatalogPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const BRAND = "#6B8C8E";
+    const BRAND = "#3B82F6";
 
     useEffect(() => {
         (async () => {
@@ -26,8 +26,9 @@ export default function CatalogPage() {
                 setItems(catalog);
                 setCategories(cats);
                 setCollections(cols);
-            } catch (e: any) {
-                setError(e?.message ?? "Failed to load catalog");
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : "Failed to load catalog";
+                setError(message);
             } finally {
                 setLoading(false);
             }
@@ -46,53 +47,55 @@ export default function CatalogPage() {
     if (!items.length) return <main className="p-4">No items yet.</main>;
 
     return (
-        <div className="min-h-screen p-6" style={{ backgroundColor: "#fbfbfa" }}>
+        <div className="min-h-screen" style={{ backgroundColor: "#fbfbfa" }}>
             <Header />
-            {/* Header Section */}
-            <div className="mb-8 flex flex-col items-center">
-                <h1
-                    className="text-3xl font-extrabold tracking-wide mb-3 text-center w-full"
-                    style={{ color: BRAND, textShadow: "0 1px 0 rgba(0,0,0,0.05)" }}
-                >
-                    Catalog
-                </h1>
-                <div
-                    className="h-1.5 w-28 rounded-full mb-4"
-                    style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND}80)` }}
-                ></div>
-                <div className="flex gap-2 mt-2">
-                    <select
-                        className="select select-bordered"
-                        value={sortType}
-                        onChange={e => {
-                            setSortType(e.target.value as "category" | "collection" | "");
-                            setOption("");
-                        }}
+            <main className="p-6">
+                {/* Header Section */}
+                <div className="mb-8 flex flex-col items-center">
+                    <h1
+                        className="text-3xl font-extrabold tracking-wide mb-3 text-center w-full"
+                        style={{ color: BRAND, textShadow: "0 1px 0 rgba(0,0,0,0.05)" }}
                     >
-                        <option value="">Sort by...</option>
-                        <option value="category">Category</option>
-                        <option value="collection">Collection</option>
-                    </select>
-                    {sortType && (
+                        Catalog
+                    </h1>
+                    <div
+                        className="h-1.5 w-28 rounded-full mb-4"
+                        style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND}80)` }}
+                    ></div>
+                    <div className="flex gap-2 mt-2">
                         <select
                             className="select select-bordered"
-                            value={option}
-                            onChange={e => setOption(e.target.value)}
+                            value={sortType}
+                            onChange={e => {
+                                setSortType(e.target.value as "category" | "collection" | "");
+                                setOption("");
+                            }}
                         >
-                            <option value="">Choose {sortType}...</option>
-                            {(sortType === "category" ? categories : collections).map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
+                            <option value="">Sort by...</option>
+                            <option value="category">Category</option>
+                            <option value="collection">Collection</option>
                         </select>
-                    )}
+                        {sortType && (
+                            <select
+                                className="select select-bordered"
+                                value={option}
+                                onChange={e => setOption(e.target.value)}
+                            >
+                                <option value="">Choose {sortType}...</option>
+                                {(sortType === "category" ? categories : collections).map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
                 </div>
-            </div>
-            {/* Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 max-w-6xl mx-auto">
-                {filteredItems.map(item => (
-                    <JewelryCard key={item.id} item={item} />
-                ))}
-            </div>
+                {/* Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 max-w-6xl mx-auto">
+                    {filteredItems.map(item => (
+                        <JewelryCard key={item.id} item={item} />
+                    ))}
+                </div>
+            </main>
         </div>
     );
 }

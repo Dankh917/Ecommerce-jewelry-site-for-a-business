@@ -1,16 +1,28 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { getJewelryItemById } from "../api/jewelry";
 import Header from "../components/Header";
 
+interface GalleryImage { url: string }
+interface JewelryItem {
+    name: string;
+    mainImageUrl: string;
+    galleryImages?: GalleryImage[];
+    videoUrl?: string;
+    videoPosterUrl?: string;
+    description: string;
+    price?: number;
+    shippingPrice?: number;
+}
+
 export default function JewelryItemPage() {
     const { id } = useParams<{ id: string }>();
-    const [item, setItem] = useState<any>(null);
+    const [item, setItem] = useState<JewelryItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // ---- Palette & UI Config (inspired by jewelry glazes/metals) ----
-    const BRAND = "#6B8C8E";   // verdigris / muted teal
+    const BRAND = "#3B82F6";   // brand blue
     const TRANSITION_MS = 400;  // quick fade
     const MEDIA_H = 520;        // fixed stage height (px) -> no card resizing
 
@@ -24,8 +36,9 @@ export default function JewelryItemPage() {
             try {
                 const data = await getJewelryItemById(Number(id));
                 setItem(data);
-            } catch (e: any) {
-                setError(e?.message ?? "Failed to load item");
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : "Failed to load item";
+                setError(message);
             } finally {
                 setLoading(false);
             }
@@ -33,12 +46,16 @@ export default function JewelryItemPage() {
     }, [id]);
 
     // Build gallery: images + video (if exists)
-    const gallery = item
+    type Media =
+        | { type: "image"; url: string; alt: string }
+        | { type: "video"; url: string; alt: string; poster?: string };
+
+    const gallery: Media[] = item
         ? [
             { type: "image", url: item.mainImageUrl, alt: item.name },
             ...(item.galleryImages ?? [])
-                .filter((img: any) => img.url !== item.mainImageUrl)
-                .map((img: any) => ({ type: "image", url: img.url, alt: item.name })),
+                .filter(img => img.url !== item.mainImageUrl)
+                .map(img => ({ type: "image", url: img.url, alt: item.name })),
             ...(item.videoUrl
                 ? [{ type: "video", url: item.videoUrl, alt: "Video", poster: item.videoPosterUrl }]
                 : [])
@@ -63,23 +80,25 @@ export default function JewelryItemPage() {
         }
     };
 
-    if (loading) return <main className="p-4">Loading</main>;
-    if (error) return <main className="p-4 text-red-600">{error}</main>;
-    if (!item) return <main className="p-4">No item found.</main>;
-
-    // Price formatting (always two decimals, Price: NN.NN USD)
-    const formattedPrice = item?.price != null ? Number(item.price).toFixed(2) : null;
-
-    // Shipping formatting
-    const shippingVal = item?.shippingPrice ?? null;
-    const formattedShipping = shippingVal != null ? Number(shippingVal).toFixed(2) : null;
-    const isFreeShipping = formattedShipping === "0.00";
-
-    return (
-        <div className="min-h-screen p-8 bg-[#fbfbfa] flex flex-col items-center">
-            <Header />
-            {/* Title with subtle effect + underline bar */}
-            <h1
+    if (loading) return <main className="p-4">Loading</main>;
+        <div className="min-h-screen bg-[#fbfbfa] flex flex-col items-center">
+            <div className="p-8 flex flex-col items-center">
+                {/* Title with subtle effect + underline bar */}
+                <h1
+                    className="text-3xl font-extrabold tracking-wide mb-3 text-center w-full"
+                    style={{ color: BRAND, textShadow: "0 1px 0 rgba(0,0,0,0.05)" }}
+                >
+                    {item.name}
+                </h1>
+                <div
+                    className="h-1.5 w-28 rounded-full mb-8"
+                    style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND}80)` }}
+                />
+                {/* Unified card: gallery + thumbnails + description/price */}
+                <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full p-8">
+                                    style={{ "--brand": BRAND } as CSSProperties}
+                                            {("poster" in media && media.poster) ? (
+                                                    src={media.poster}
                 className="text-3xl font-extrabold tracking-wide mb-3 text-center w-full"
                 style={{ color: BRAND, textShadow: "0 1px 0 rgba(0,0,0,0.05)" }}
             >
@@ -143,7 +162,7 @@ export default function JewelryItemPage() {
                     {/* Main Display */}
                     <div className="flex-1 flex items-center justify-center" style={{ minHeight: MEDIA_H }}>
                         <div
-                            className={`w-full transition-opacity ${fadingOut ? "opacity-0" : "opacity-100"}`}
+                                    poster={selectedMedia.type === "video" ? selectedMedia.poster : undefined}
                             style={{
                                 height: MEDIA_H,
                                 transitionDuration: `${TRANSITION_MS}ms`,
@@ -233,6 +252,7 @@ export default function JewelryItemPage() {
                                     <span className="tabular-nums">{formattedShipping}</span>
                                     <span className={isFreeShipping ? "ml-1 opacity-90" : "ml-1 opacity-80"}>
                                         USD
+                </div>
                                     </span>
                                 </span>
                             )}
