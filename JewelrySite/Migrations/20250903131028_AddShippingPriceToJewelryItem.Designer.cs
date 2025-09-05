@@ -4,6 +4,7 @@ using JewelrySite.DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace JewelrySite.Migrations
 {
     [DbContext(typeof(JewerlyStoreDBContext))]
-    partial class JewerlyStoreDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250903131028_AddShippingPriceToJewelryItem")]
+    partial class AddShippingPriceToJewelryItem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -132,7 +135,7 @@ namespace JewelrySite.Migrations
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("ShippingPrice")
+                    b.Property<decimal?>("ShippingPrice")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("SizeCM")
