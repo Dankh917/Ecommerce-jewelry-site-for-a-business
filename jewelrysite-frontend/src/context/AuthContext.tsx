@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { login as loginRequest, refreshToken as refreshTokenRequest } from "../api/auth";
+import { onAuthTokenRefreshed, setAuthTokens } from "../api/http";
 
 interface User {
     id?: number;
@@ -28,20 +29,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const storedJwt = localStorage.getItem("jwtToken");
         const storedRefresh = localStorage.getItem("refreshToken");
+        let parsedUser: User | null = null;
+        let uid: number | undefined;
         if (storedJwt) {
             setJwtToken(storedJwt);
-            setUser(parseJwt(storedJwt));
+            parsedUser = parseJwt(storedJwt);
+            setUser(parsedUser);
+            const id = parsedUser?.userId ?? parsedUser?.id ?? parsedUser?.sub;
+            if (id !== undefined) {
+                uid = Number(id);
+            }
         }
         if (storedRefresh) {
             setRefreshToken(storedRefresh);
         }
+        setAuthTokens(storedJwt, storedRefresh, uid);
+    }, []);
+
+    useEffect(() => {
+        onAuthTokenRefreshed((jwt, refresh) => {
+            setJwtToken(jwt);
+            setRefreshToken(refresh);
+            setUser(parseJwt(jwt));
+        });
     }, []);
 
     const login = async (data: { email: string; password: string }) => {
         const res = await loginRequest(data);
+        const parsed = parseJwt(res.jwtToken);
         setJwtToken(res.jwtToken);
         setRefreshToken(res.refreshToken);
-        setUser(parseJwt(res.jwtToken));
+        setUser(parsed);
+        const uid = parsed?.userId ?? parsed?.id ?? parsed?.sub;
+        setAuthTokens(res.jwtToken, res.refreshToken, uid ? Number(uid) : undefined);
         localStorage.setItem("jwtToken", res.jwtToken);
         localStorage.setItem("refreshToken", res.refreshToken);
     };
@@ -50,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setJwtToken(null);
         setRefreshToken(null);
         setUser(null);
+        setAuthTokens(null, null, null);
         localStorage.removeItem("jwtToken");
         localStorage.removeItem("refreshToken");
     };
@@ -65,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setJwtToken(res.jwtToken);
         setRefreshToken(res.refreshToken);
         setUser(parseJwt(res.jwtToken));
+        setAuthTokens(res.jwtToken, res.refreshToken, Number(userId));
         localStorage.setItem("jwtToken", res.jwtToken);
         localStorage.setItem("refreshToken", res.refreshToken);
     };
