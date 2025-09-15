@@ -1,25 +1,27 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import { useAuth } from "../context/AuthContext";
+import { register } from "../api/auth";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+    const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
-    const location = useLocation();
-    const { login } = useAuth();
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        if (password.length < 6) {
+            setError("Password must be at least 6 characters");
+            return;
+        }
         try {
-            await login({ email, password });
-            const redirectTo = (location.state as { from?: string } | null)?.from || "/";
-            navigate(redirectTo);
+            await register({ username, email, password });
+            navigate("/login");
         } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : "Login failed";
+            const message = e instanceof Error ? e.message : "Registration failed";
             setError(message);
         }
     };
@@ -30,9 +32,21 @@ export default function LoginPage() {
             <main className="flex-grow flex items-center justify-center p-4">
                 <form onSubmit={onSubmit} className="bg-white/90 rounded-lg shadow-md p-6 w-full max-w-md space-y-4">
                     <h1 className="text-2xl font-bold text-center" style={{ color: "#6B8C8E" }}>
-                        Login
+                        Register
                     </h1>
                     {error && <div className="text-red-600 text-sm">{error}</div>}
+                    <div className="form-control">
+                        <label className="label">
+                            <span className="label-text">Username</span>
+                        </label>
+                        <input
+                            type="text"
+                            className="input input-bordered w-full"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                    </div>
                     <div className="form-control">
                         <label className="label">
                             <span className="label-text">Email</span>
@@ -62,17 +76,10 @@ export default function LoginPage() {
                         className="btn w-full text-white"
                         style={{ backgroundColor: "#6B8C8E" }}
                     >
-                        Login
+                        Register
                     </button>
-                    <p className="text-sm text-center">
-                        Don't have an account?{' '}
-                        <Link to="/register" className="underline">
-                            Register
-                        </Link>
-                    </p>
                 </form>
             </main>
         </div>
     );
 }
-
