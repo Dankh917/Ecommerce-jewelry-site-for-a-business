@@ -8,7 +8,7 @@ export default function Header() {
     const links = [
         { to: "/", label: "Home" },
         { to: "/catalog", label: "Catalog" },
-        { to: "#", label: "Contact" }, // placeholder for now
+        { to: "/login", label: "Login" },
     ];
     const filteredLinks = links.filter(l => l.to !== location.pathname);
 
