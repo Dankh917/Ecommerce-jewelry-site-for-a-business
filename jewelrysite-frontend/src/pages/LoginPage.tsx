@@ -4,7 +4,7 @@ import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -15,7 +15,7 @@ export default function LoginPage() {
         e.preventDefault();
         setError(null);
         try {
-            await login({ email: username, password });
+            await login({ email, password });
             const redirectTo = (location.state as { from?: string } | null)?.from || "/";
             navigate(redirectTo);
         } catch (e: unknown) {
@@ -35,13 +35,13 @@ export default function LoginPage() {
                     {error && <div className="text-red-600 text-sm">{error}</div>}
                     <div className="form-control">
                         <label className="label">
-                            <span className="label-text">Username</span>
+                            <span className="label-text">Email</span>
                         </label>
                         <input
-                            type="text"
+                            type="email"
                             className="input input-bordered w-full"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                         />
                     </div>
