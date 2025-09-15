@@ -31,13 +31,13 @@ namespace JewelrySite.Controllers
 			return Ok(user);
 		}
 
-		[HttpPost("login")]
-		public async Task<ActionResult<LoginResponseDto>> Login(UserDto request)
-		{
-			LoginResponseDto tokens = await _service.LoginAsync(request);
-			if (tokens == null) { return BadRequest("Invalid username or password");}
-			return Ok(tokens);
-		}
+                [HttpPost("login")]
+                public async Task<ActionResult<LoginResponseDto>> Login(LoginDto request)
+                {
+                        LoginResponseDto tokens = await _service.LoginAsync(request);
+                        if (tokens == null) { return BadRequest("Invalid email or password"); }
+                        return Ok(tokens);
+                }
 
 		[HttpPost("refresh-token")]
 		public async Task<ActionResult<LoginResponseDto>> RefreshToken(RefreshTokenDto request)
