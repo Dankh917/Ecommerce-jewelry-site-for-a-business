@@ -24,21 +24,21 @@ namespace JewelrySite.DAL
 			_db = db;
 		}
 
-		public async Task<LoginResponseDto?> LoginAsync(UserDto request)
-		{
-			User user = _db.Users.FirstOrDefault(u => u.Username == request.Username);
+                public async Task<LoginResponseDto?> LoginAsync(LoginDto request)
+                {
+                        User user = _db.Users.FirstOrDefault(u => u.Email == request.Email);
 
-			if (user == null) { return null; }
+                        if (user == null) { return null; }
 
-			if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
-			{
-				return null;
-			}
+                        if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+                        {
+                                return null;
+                        }
 
-			LoginResponseDto response = await CreateTokenResponse(user);
+                        LoginResponseDto response = await CreateTokenResponse(user);
 
-			return response;
-		}
+                        return response;
+                }
 
 		private async Task<LoginResponseDto> CreateTokenResponse(User user)
 		{
