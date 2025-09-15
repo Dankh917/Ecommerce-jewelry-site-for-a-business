@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import JewelryCard from "../components/JewelryCard";
 import { getCatalog, getCategories, getCollections } from "../api/jewelry";
 import type { JewelryItemForCard } from "../types/JewelryItemForCard";
@@ -13,7 +13,7 @@ export default function CatalogPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const BRAND = "#3B82F6";
+    const BRAND = "#6B8C8E";
 
     useEffect(() => {
         (async () => {
@@ -21,7 +21,7 @@ export default function CatalogPage() {
                 const [catalog, cats, cols] = await Promise.all([
                     getCatalog(),
                     getCategories(),
-                    getCollections()
+                    getCollections(),
                 ]);
                 setItems(catalog);
                 setCategories(cats);
@@ -35,7 +35,7 @@ export default function CatalogPage() {
         })();
     }, []);
 
-    const filteredItems = items.filter(item => {
+    const filteredItems = items.filter((item) => {
         if (!sortType || !option) return true;
         if (sortType === "category") return item.category === option;
         if (sortType === "collection") return item.collection === option;
@@ -47,8 +47,10 @@ export default function CatalogPage() {
     if (!items.length) return <main className="p-4">No items yet.</main>;
 
     return (
-        <div className="min-h-screen" style={{ backgroundColor: "#fbfbfa" }}>
+        // ONE background: smooth gradient from bluish-white → brand blue
+        <div className="min-h-screen bg-gradient-to-b from-[#f3f6f7] via-[#eef3f4] to-[#6B8C8E] bg-fixed">
             <Header />
+
             <main className="p-6">
                 {/* Header Section */}
                 <div className="mb-8 flex flex-col items-center">
@@ -60,13 +62,15 @@ export default function CatalogPage() {
                     </h1>
                     <div
                         className="h-1.5 w-28 rounded-full mb-4"
-                        style={{ background: `linear-gradient(90deg, ${BRAND}, ${BRAND}80)` }}
-                    ></div>
+                        style={{
+                            background: `linear-gradient(90deg, ${BRAND}, ${BRAND}80)`,
+                        }}
+                    />
                     <div className="flex gap-2 mt-2">
                         <select
-                            className="select select-bordered"
+                            className="select select-bordered bg-white/90"
                             value={sortType}
-                            onChange={e => {
+                            onChange={(e) => {
                                 setSortType(e.target.value as "category" | "collection" | "");
                                 setOption("");
                             }}
@@ -75,23 +79,27 @@ export default function CatalogPage() {
                             <option value="category">Category</option>
                             <option value="collection">Collection</option>
                         </select>
+
                         {sortType && (
                             <select
-                                className="select select-bordered"
+                                className="select select-bordered bg-white/90"
                                 value={option}
-                                onChange={e => setOption(e.target.value)}
+                                onChange={(e) => setOption(e.target.value)}
                             >
                                 <option value="">Choose {sortType}...</option>
-                                {(sortType === "category" ? categories : collections).map(opt => (
-                                    <option key={opt} value={opt}>{opt}</option>
+                                {(sortType === "category" ? categories : collections).map((opt) => (
+                                    <option key={opt} value={opt}>
+                                        {opt}
+                                    </option>
                                 ))}
                             </select>
                         )}
                     </div>
                 </div>
-                {/* Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 max-w-6xl mx-auto">
-                    {filteredItems.map(item => (
+
+                {/* Cards — no outer wrapper so there’s no extra ring */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 max-w-6xl mx-auto items-stretch">
+                    {filteredItems.map((item) => (
                         <JewelryCard key={item.id} item={item} />
                     ))}
                 </div>
