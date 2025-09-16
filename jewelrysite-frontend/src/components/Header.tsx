@@ -1,16 +1,32 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { decodeJwtPayload } from "../utils/jwt";
+
+type Claims = {
+    sub?: string | number;
+    [key: string]: unknown;
+};
 
 export default function Header() {
     const location = useLocation();
-    const { user, logout } = useAuth();
+    const { user, logout, jwtToken } = useAuth();
     const [showLogoutMsg, setShowLogoutMsg] = useState(false);
     const logoutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const BRAND = "#6B8C8E";     // same as your page titles
     const HEADER_BG = "#E3F0F2";
 
-    const isAuthenticated = Boolean(user);
+    const claims = useMemo<Claims | null>(() => {
+        if (user) {
+            return user as Claims;
+        }
+        if (jwtToken) {
+            return decodeJwtPayload<Claims>(jwtToken);
+        }
+        return null;
+    }, [jwtToken, user]);
+
+    const isAuthenticated = Boolean(claims);
     const links = [
         { to: "/", label: "Home" },
         { to: "/catalog", label: "Catalog" },
@@ -21,16 +37,79 @@ export default function Header() {
             : []),
     ];
     const filteredLinks = links.filter(l => l.to !== location.pathname);
-    const displayName =
-        (user?.username as string | undefined) ??
-        (user?.name as string | undefined) ??
-        (user?.email as string | undefined) ??
-        (typeof user?.sub === "string"
-            ? user?.sub
-            : user?.sub !== undefined
-                ? String(user.sub)
-                : undefined) ??
-        "Account";
+
+    const displayName = useMemo(() => {
+        const isNonEmptyString = (value: unknown): value is string =>
+            typeof value === "string" && value.trim().length > 0;
+
+        const pickClaim = (obj: Claims | null, key: string) => {
+            if (!obj) return undefined;
+            const direct = obj[key];
+            if (isNonEmptyString(direct)) {
+                return direct;
+            }
+            const matchedKey = Object.keys(obj).find(
+                candidate => candidate.toLowerCase() === key.toLowerCase()
+            );
+            if (!matchedKey) {
+                return undefined;
+            }
+            const candidateValue = obj[matchedKey];
+            return isNonEmptyString(candidateValue) ? candidateValue : undefined;
+        };
+
+        const preferredKeys = [
+            "preferred_username",
+            "username",
+            "name",
+            "given_name",
+            "first_name",
+            "firstName",
+            "nickname",
+            "displayName",
+            "displayname",
+            "fullName",
+            "full_name",
+        ];
+        for (const key of preferredKeys) {
+            const value = pickClaim(claims, key);
+            if (value) {
+                return value;
+            }
+        }
+
+        if (claims) {
+            for (const [key, value] of Object.entries(claims)) {
+                if (!isNonEmptyString(value)) continue;
+                const normalizedKey = key.toLowerCase();
+                if (
+                    normalizedKey === "name" ||
+                    normalizedKey === "fullname" ||
+                    normalizedKey === "full_name" ||
+                    normalizedKey.endsWith("/name") ||
+                    normalizedKey.endsWith(":name") ||
+                    normalizedKey.endsWith("_name")
+                ) {
+                    return value;
+                }
+            }
+        }
+
+        const emailLike = pickClaim(claims, "email") ?? pickClaim(claims, "upn");
+        if (emailLike) {
+            return emailLike;
+        }
+
+        const sub = claims?.sub;
+        if (typeof sub === "string" && sub.trim().length > 0) {
+            return sub;
+        }
+        if (typeof sub === "number") {
+            return String(sub);
+        }
+
+        return "Account";
+    }, [claims]);
 
     useEffect(() => {
         return () => {
