@@ -1,7 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { login as loginRequest, refreshToken as refreshTokenRequest } from "../api/auth";
 import { onAuthTokenRefreshed, setAuthTokens } from "../api/http";
+import { decodeJwtPayload } from "../utils/jwt";
 
 interface User {
     id?: number;
@@ -33,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let uid: number | undefined;
         if (storedJwt) {
             setJwtToken(storedJwt);
-            parsedUser = parseJwt(storedJwt);
+            parsedUser = decodeJwtPayload<User>(storedJwt);
             setUser(parsedUser);
             const id = parsedUser?.userId ?? parsedUser?.id ?? parsedUser?.sub;
             if (id !== undefined) {
@@ -50,13 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onAuthTokenRefreshed((jwt, refresh) => {
             setJwtToken(jwt);
             setRefreshToken(refresh);
-            setUser(parseJwt(jwt));
+            setUser(decodeJwtPayload<User>(jwt));
         });
     }, []);
 
     const login = async (data: { email: string; password: string }) => {
         const res = await loginRequest(data);
-        const parsed = parseJwt(res.jwtToken);
+        const parsed = decodeJwtPayload<User>(res.jwtToken);
         setJwtToken(res.jwtToken);
         setRefreshToken(res.refreshToken);
         setUser(parsed);
@@ -85,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setJwtToken(res.jwtToken);
         setRefreshToken(res.refreshToken);
-        setUser(parseJwt(res.jwtToken));
+        setUser(decodeJwtPayload<User>(res.jwtToken));
         setAuthTokens(res.jwtToken, res.refreshToken, Number(userId));
         localStorage.setItem("jwtToken", res.jwtToken);
         localStorage.setItem("refreshToken", res.refreshToken);
@@ -104,21 +106,5 @@ export function useAuth() {
         throw new Error("useAuth must be used within an AuthProvider");
     }
     return ctx;
-}
-
-function parseJwt(token: string): User | null {
-    try {
-        const base64Url = token.split(".")[1];
-        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-        const jsonPayload = decodeURIComponent(
-            atob(base64)
-                .split("")
-                .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-                .join("")
-        );
-        return JSON.parse(jsonPayload);
-    } catch {
-        return null;
-    }
 }
 
