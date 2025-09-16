@@ -2,18 +2,11 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState, type CSSProperties } from "react";
 import { getJewelryItemById } from "../api/jewelry";
 import Header from "../components/Header";
+import type { JewelryItemDetails } from "../types/JewelryItemDetails";
 
-interface GalleryImage { url: string }
-interface JewelryItem {
-    name: string;
-    mainImageUrl: string;
-    galleryImages?: GalleryImage[];
-    videoUrl?: string;
-    videoPosterUrl?: string;
-    description: string;
-    price?: number;
-    shippingPrice?: number;
-}
+type CSSPropertiesWithBrand = CSSProperties & {
+    "--brand"?: string;
+};
 
 type Media =
     | { type: "image"; url: string; alt: string }
@@ -21,13 +14,14 @@ type Media =
 
 export default function JewelryItemPage() {
     const { id } = useParams<{ id: string }>();
-    const [item, setItem] = useState<JewelryItem | null>(null);
+    const [item, setItem] = useState<JewelryItemDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Brand/UI
-    const BRAND = "#6B8C8E";       // verdigris you chose
+    const BRAND = "#6B8C8E"; // verdigris you chose
     const MEDIA_H = 520;
+    const brandCssVariables: CSSPropertiesWithBrand = { "--brand": BRAND };
 
     // Gallery state
     const [currentIdx, setCurrentIdx] = useState(0);
@@ -80,7 +74,7 @@ export default function JewelryItemPage() {
         return (
             <>
                 <Header />
-                <main className="p-6">Loading…</main>
+                <main className="p-6">Loadingâ€¦</main>
             </>
         );
     }
@@ -116,7 +110,7 @@ export default function JewelryItemPage() {
                     {/* Card */}
                     <div
                         className="bg-white rounded-lg shadow-lg max-w-5xl w-full p-8"
-                        style={{ "--brand": BRAND } as CSSProperties}
+                        style={brandCssVariables}
                     >
                         {/* Top section: thumbnails + main media */}
                         <div className="w-full flex flex-row gap-8">
@@ -131,7 +125,7 @@ export default function JewelryItemPage() {
                                             onClick={() => setCurrentIdx(idx)}
                                             className={`relative w-16 h-16 rounded-lg border cursor-pointer transition ring-2 ${isActive ? "ring-[var(--brand)]" : "ring-transparent"
                                                 } bg-white overflow-hidden`}
-                                            style={{ ["--brand" as any]: BRAND }}
+                                            style={brandCssVariables}
                                             title={media.alt || `Gallery ${idx + 1}`}
                                         >
                                             {media.type === "image" ? (
