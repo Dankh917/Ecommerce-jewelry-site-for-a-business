@@ -14,7 +14,6 @@ export default function Header() {
         ...(!isAuthenticated
             ? [
                   { to: "/login", label: "Login" },
-                  { to: "/register", label: "Register" },
               ]
             : []),
     ];
