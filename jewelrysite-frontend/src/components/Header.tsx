@@ -70,7 +70,7 @@ export default function Header() {
                                 className="text-sm sm:text-base font-semibold"
                                 style={{ color: BRAND }}
                             >
-                                {displayName}
+                                {`Hello ${displayName}`}
                             </span>
                             <button
                                 type="button"
