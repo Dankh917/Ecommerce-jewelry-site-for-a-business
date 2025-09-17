@@ -15,14 +15,24 @@ function parseUserId(candidate: unknown): number | null {
     return null;
 }
 
+const POSSIBLE_ID_KEYS = new Set<string>([
+    "userid",
+    "id",
+    "sub",
+    "nameid",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+]);
+
 function extractFromClaims(claims: UserLike): number | null {
     if (!claims) {
         return null;
     }
     const record = claims as Record<string, unknown>;
-    const possibleKeys = ["userId", "id", "sub"] as const;
-    for (const key of possibleKeys) {
-        const value = record[key];
+    for (const [key, value] of Object.entries(record)) {
+        const normalizedKey = key.toLowerCase();
+        if (!POSSIBLE_ID_KEYS.has(normalizedKey) && !POSSIBLE_ID_KEYS.has(key)) {
+            continue;
+        }
         const parsed = parseUserId(value);
         if (parsed !== null) {
             return parsed;

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { login as loginRequest, refreshToken as refreshTokenRequest } from "../api/auth";
 import { onAuthTokenRefreshed, setAuthTokens } from "../api/http";
 import { decodeJwtPayload } from "../utils/jwt";
+import { resolveUserId } from "../utils/user";
 
 interface User {
     id?: number;
@@ -32,20 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedJwt = localStorage.getItem("jwtToken");
         const storedRefresh = localStorage.getItem("refreshToken");
         let parsedUser: User | null = null;
-        let uid: number | undefined;
+
         if (storedJwt) {
             setJwtToken(storedJwt);
             parsedUser = decodeJwtPayload<User>(storedJwt);
             setUser(parsedUser);
-            const id = parsedUser?.userId ?? parsedUser?.id ?? parsedUser?.sub;
-            if (id !== undefined) {
-                uid = Number(id);
-            }
         }
         if (storedRefresh) {
             setRefreshToken(storedRefresh);
         }
-        setAuthTokens(storedJwt, storedRefresh, uid);
+
+        const resolvedId = resolveUserId(parsedUser, storedJwt);
+        setAuthTokens(storedJwt, storedRefresh, resolvedId);
     }, []);
 
     useEffect(() => {
@@ -62,8 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setJwtToken(res.jwtToken);
         setRefreshToken(res.refreshToken);
         setUser(parsed);
-        const uid = parsed?.userId ?? parsed?.id ?? parsed?.sub;
-        setAuthTokens(res.jwtToken, res.refreshToken, uid ? Number(uid) : undefined);
+        const uid = resolveUserId(parsed, res.jwtToken);
+        setAuthTokens(res.jwtToken, res.refreshToken, uid);
         localStorage.setItem("jwtToken", res.jwtToken);
         localStorage.setItem("refreshToken", res.refreshToken);
     };
@@ -79,16 +78,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refresh = async () => {
         if (!refreshToken || !user) return;
-        const userId = user.userId ?? user.id ?? user.sub;
-        if (userId === undefined) return;
+        const existingId = resolveUserId(user, jwtToken);
+        if (existingId === null) return;
         const res = await refreshTokenRequest({
-            userId: Number(userId),
+            userId: existingId,
             refreshToken,
         });
+        const refreshedUser = decodeJwtPayload<User>(res.jwtToken);
         setJwtToken(res.jwtToken);
         setRefreshToken(res.refreshToken);
-        setUser(decodeJwtPayload<User>(res.jwtToken));
-        setAuthTokens(res.jwtToken, res.refreshToken, Number(userId));
+        setUser(refreshedUser);
+        const updatedId = resolveUserId(refreshedUser, res.jwtToken) ?? existingId;
+        setAuthTokens(res.jwtToken, res.refreshToken, updatedId);
         localStorage.setItem("jwtToken", res.jwtToken);
         localStorage.setItem("refreshToken", res.refreshToken);
     };

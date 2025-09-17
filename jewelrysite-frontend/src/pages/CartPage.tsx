@@ -156,10 +156,15 @@ export default function CartPage() {
                             {error}
                         </div>
                     ) : items.length === 0 ? (
-                        <div className="bg-white shadow rounded-lg p-10 text-center">
+                        <div
+                            className="bg-white shadow rounded-lg p-10 text-center"
+                            role="status"
+                            aria-live="polite"
+                        >
                             <p className="text-lg font-semibold text-gray-700">Your cart is currently empty.</p>
                             <p className="text-sm text-gray-500 mt-2">
-                                Browse our catalog to discover handcrafted jewelry that fits your style.
+                                Items you add will appear here. Browse our catalog to discover handcrafted jewelry that fits your
+                                style.
                             </p>
                             <Link
                                 to="/catalog"
