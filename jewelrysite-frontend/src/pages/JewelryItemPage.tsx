@@ -1,19 +1,12 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { isAxiosError } from "axios";
 import { getJewelryItemById } from "../api/jewelry";
 import Header from "../components/Header";
-
-interface GalleryImage { url: string }
-interface JewelryItem {
-    name: string;
-    mainImageUrl: string;
-    galleryImages?: GalleryImage[];
-    videoUrl?: string;
-    videoPosterUrl?: string;
-    description: string;
-    price?: number;
-    shippingPrice?: number;
-}
+import { useAuth } from "../context/AuthContext";
+import { addItemToCart } from "../api/cart";
+import { resolveUserId } from "../utils/user";
+import type { JewelryItemDetail } from "../types/JewelryItemDetail";
 
 type Media =
     | { type: "image"; url: string; alt: string }
@@ -21,9 +14,17 @@ type Media =
 
 export default function JewelryItemPage() {
     const { id } = useParams<{ id: string }>();
-    const [item, setItem] = useState<JewelryItem | null>(null);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, jwtToken } = useAuth();
+    const userId = resolveUserId(user, jwtToken);
+    const [item, setItem] = useState<JewelryItemDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [quantity, setQuantity] = useState(1);
+    const [adding, setAdding] = useState(false);
+    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Brand/UI
     const BRAND = "#6B8C8E";       // verdigris you chose
@@ -54,7 +55,14 @@ export default function JewelryItemPage() {
                 .filter(img => img.url && img.url !== item.mainImageUrl)
                 .map(img => ({ type: "image" as const, url: img.url, alt: item.name })),
             ...(item.videoUrl
-                ? [{ type: "video" as const, url: item.videoUrl, alt: "Video", poster: item.videoPosterUrl }]
+                ? [
+                      {
+                          type: "video" as const,
+                          url: item.videoUrl,
+                          alt: "Video",
+                          poster: item.videoPosterUrl ?? undefined,
+                      },
+                  ]
                 : []),
         ]
         : [];
@@ -75,6 +83,60 @@ export default function JewelryItemPage() {
         item?.shippingPrice !== undefined && item?.shippingPrice !== null
             ? item.shippingPrice <= 0
             : false;
+
+    const showFeedback = useCallback((type: "success" | "error", message: string, duration = 2000) => {
+        setFeedback({ type, message });
+        if (feedbackTimeoutRef.current) {
+            clearTimeout(feedbackTimeoutRef.current);
+        }
+        if (duration > 0) {
+            feedbackTimeoutRef.current = setTimeout(() => setFeedback(null), duration);
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (feedbackTimeoutRef.current) {
+                clearTimeout(feedbackTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const handleQuantityChange = useCallback((value: number) => {
+        if (Number.isNaN(value) || value < 1) {
+            setQuantity(1);
+            return;
+        }
+        setQuantity(Math.floor(value));
+    }, []);
+
+    const handleAddToCart = useCallback(async () => {
+        if (!id || !item) {
+            return;
+        }
+        const jewelryId = Number(id);
+        if (Number.isNaN(jewelryId)) {
+            return;
+        }
+        if (!userId) {
+            navigate("/login", { state: { from: location.pathname } });
+            return;
+        }
+        setAdding(true);
+        try {
+            await addItemToCart(userId, jewelryId, quantity);
+            showFeedback("success", "Item added to cart.", 2000);
+        } catch (err: unknown) {
+            const message = isAxiosError(err)
+                ? err.response?.data?.message ?? err.response?.data ?? err.message
+                : err instanceof Error
+                  ? err.message
+                  : "Unable to add item to cart.";
+            showFeedback("error", typeof message === "string" ? message : "Unable to add item to cart.", 4000);
+        } finally {
+            setAdding(false);
+        }
+    }, [id, item, userId, navigate, location.pathname, quantity, showFeedback]);
 
     if (loading) {
         return (
@@ -131,7 +193,7 @@ export default function JewelryItemPage() {
                                             onClick={() => setCurrentIdx(idx)}
                                             className={`relative w-16 h-16 rounded-lg border cursor-pointer transition ring-2 ${isActive ? "ring-[var(--brand)]" : "ring-transparent"
                                                 } bg-white overflow-hidden`}
-                                            style={{ ["--brand" as any]: BRAND }}
+                                            style={{ "--brand": BRAND } as CSSProperties}
                                             title={media.alt || `Gallery ${idx + 1}`}
                                         >
                                             {media.type === "image" ? (
@@ -253,39 +315,81 @@ export default function JewelryItemPage() {
                                     )}
 
                                     {/* Add to Cart */}
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl active:translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition"
-                                        style={{ backgroundColor: BRAND }}
-                                        aria-label="Add to cart"
-                                        title="Add to cart"
-                                    >
-                                        <svg
-                                            width="20"
-                                            height="20"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="mr-2"
+                                    <div className="flex items-center gap-4 flex-wrap">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-semibold text-gray-700">Quantity</span>
+                                            <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleQuantityChange(quantity - 1)}
+                                                    disabled={quantity <= 1}
+                                                    className="px-3 py-1.5 text-lg font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                                                    aria-label="Decrease quantity"
+                                                >
+                                                    −
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    value={quantity}
+                                                    onChange={event => handleQuantityChange(Number(event.target.value))}
+                                                    className="w-14 text-center text-base font-semibold text-gray-800 focus:outline-none"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleQuantityChange(quantity + 1)}
+                                                    className="px-3 py-1.5 text-lg font-semibold text-gray-600 hover:bg-gray-100"
+                                                    aria-label="Increase quantity"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl active:translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition disabled:opacity-70"
+                                            style={{ backgroundColor: BRAND }}
+                                            aria-label="Add to cart"
+                                            title="Add to cart"
+                                            onClick={handleAddToCart}
+                                            disabled={adding}
                                         >
-                                            <path
-                                                d="M6 6h15l-1.5 8.5a2 2 0 0 1-2 1.5H9a2 2 0 0 1-2-1.5L5 3H2"
-                                                stroke="white"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            />
-                                            <circle cx="9" cy="20" r="1.5" fill="white" />
-                                            <circle cx="17" cy="20" r="1.5" fill="white" />
-                                        </svg>
-                                        Add to cart
-                                    </button>
+                                            <svg
+                                                width="20"
+                                                height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="mr-2"
+                                            >
+                                                <path
+                                                    d="M6 6h15l-1.5 8.5a2 2 0 0 1-2 1.5H9a2 2 0 0 1-2-1.5L5 3H2"
+                                                    stroke="white"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+                                                <circle cx="9" cy="20" r="1.5" fill="white" />
+                                                <circle cx="17" cy="20" r="1.5" fill="white" />
+                                            </svg>
+                                            {adding ? "Adding…" : "Add to cart"}
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             </main>
+            {feedback && (
+                <div
+                    className={`fixed bottom-6 right-6 px-4 py-2.5 rounded-lg shadow-lg text-sm font-semibold text-white ${
+                        feedback.type === "success" ? "bg-emerald-600" : "bg-red-600"
+                    }`}
+                >
+                    {feedback.message}
+                </div>
+            )}
         </>
     );
 }
