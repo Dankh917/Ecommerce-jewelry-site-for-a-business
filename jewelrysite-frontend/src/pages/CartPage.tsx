@@ -187,12 +187,12 @@ export default function CartPage() {
                                             className="bg-white shadow rounded-xl overflow-hidden border border-gray-100"
                                         >
                                             <div className="flex flex-col sm:flex-row">
-                                                <div className="sm:w-40 sm:h-40 w-full h-52 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                                <div className="sm:w-44 sm:h-44 w-full h-56 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
                                                     {jewelry?.mainImageUrl ? (
                                                         <img
                                                             src={jewelry.mainImageUrl}
                                                             alt={jewelry.name}
-                                                            className="w-full h-full object-cover"
+                                                            className="max-h-full max-w-full object-contain p-3"
                                                         />
                                                     ) : (
                                                         <span className="text-sm text-gray-400">No image</span>
