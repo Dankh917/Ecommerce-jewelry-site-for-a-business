@@ -1,5 +1,6 @@
-﻿using JewelrySite.BL;
+using JewelrySite.BL;
 using JewelrySite.DAL;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +8,7 @@ namespace JewelrySite.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+        [Authorize(Roles = "Customer,Admin")]
 	public class CartController : ControllerBase
 	{
 
