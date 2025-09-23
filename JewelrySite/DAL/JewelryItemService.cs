@@ -67,14 +67,16 @@ namespace JewelrySite.DAL
 			item.Name = incomingJewelryItem.Name;
 			item.Description = incomingJewelryItem.Description;
 			item.Category = incomingJewelryItem.Category;
-			item.Collection = incomingJewelryItem.Collection;
-			item.WeightGrams = incomingJewelryItem.WeightGrams;
-			item.Color =incomingJewelryItem.Color;
-			item.Price = incomingJewelryItem.Price;
-			item.StockQuantity = incomingJewelryItem.StockQuantity;
-			item.IsAvailable = incomingJewelryItem.IsAvailable;
-			item.MainImageUrl = incomingJewelryItem.MainImageUrl;
-			item.VideoUrl = incomingJewelryItem.VideoUrl;
+                        item.Collection = incomingJewelryItem.Collection;
+                        item.WeightGrams = incomingJewelryItem.WeightGrams;
+                        item.Color = incomingJewelryItem.Color;
+                        item.SizeCM = incomingJewelryItem.SizeCM;
+                        item.Price = incomingJewelryItem.Price;
+                        item.StockQuantity = incomingJewelryItem.StockQuantity;
+                        item.IsAvailable = incomingJewelryItem.IsAvailable;
+                        item.MainImageUrl = incomingJewelryItem.MainImageUrl;
+                        item.ShippingPrice = incomingJewelryItem.ShippingPrice;
+                        item.VideoUrl = incomingJewelryItem.VideoUrl;
 			item.VideoPosterUrl = incomingJewelryItem.VideoPosterUrl;
 			item.VideoDurationSeconds = incomingJewelryItem.VideoDurationSeconds;
 

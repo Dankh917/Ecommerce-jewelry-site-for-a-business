@@ -29,6 +29,10 @@ export async function addJewelryItem(data: CreateJewelryItemRequest) {
     return res.data;
 }
 
+export async function updateJewelryItem(id: number, data: CreateJewelryItemRequest) {
+    await http.put("/api/jewelryItem", data, { params: { id } });
+}
+
 export async function deleteJewelryItem(id: number) {
     await http.delete("/api/jewelryItem", { params: { id } });
 }
