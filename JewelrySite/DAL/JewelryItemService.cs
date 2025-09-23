@@ -1,6 +1,8 @@
-﻿using JewelrySite.BL;
+using JewelrySite.BL;
 using JewelrySite.DTO;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace JewelrySite.DAL
@@ -39,13 +41,50 @@ namespace JewelrySite.DAL
 
 		}
 
-		public async Task<JewelryItem> GetJewelryItemById(int id)
-		{
-			return await _db.JewelryItems
-			.AsNoTracking()                       
-			.Include(j => j.GalleryImages)       
-			.FirstOrDefaultAsync(j => j.Id == id);
-		}
+               public async Task<JewelryItemDetailDto?> GetJewelryItemById(int id)
+               {
+                       JewelryItem item = await _db.JewelryItems
+                               .AsNoTracking()
+                               .Include(j => j.GalleryImages)
+                               .FirstOrDefaultAsync(j => j.Id == id);
+
+                       if (item is null)
+                       {
+                               return null;
+                       }
+
+                       List<JewelryImageDetailDto> gallery = item.GalleryImages?
+                               .OrderBy(g => g.SortOrder)
+                               .Select(g => new JewelryImageDetailDto
+                               {
+                                       Id = g.Id,
+                                       JewelryItemId = g.JewelryItemId,
+                                       Url = g.Url,
+                                       SortOrder = g.SortOrder
+                               })
+                               .ToList() ?? new List<JewelryImageDetailDto>();
+
+                       return new JewelryItemDetailDto
+                       {
+                               Id = item.Id,
+                               Name = item.Name,
+                               Description = item.Description,
+                               Category = item.Category,
+                               Collection = item.Collection,
+                               WeightGrams = item.WeightGrams,
+                               Color = item.Color,
+                               SizeCM = item.SizeCM,
+                               Price = item.Price,
+                               StockQuantity = item.StockQuantity,
+                               IsAvailable = item.IsAvailable,
+                               MainImageUrl = item.MainImageUrl,
+                               ShippingPrice = item.ShippingPrice,
+                               VideoUrl = item.VideoUrl,
+                               VideoPosterUrl = item.VideoPosterUrl,
+                               VideoDurationSeconds = item.VideoDurationSeconds,
+                               GalleryImages = gallery
+                       };
+               }
 		
 		public async Task<JewelryItem> AddJewelryItem(JewelryItem jewelryItem)
 		{

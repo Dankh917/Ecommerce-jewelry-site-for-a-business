@@ -25,13 +25,13 @@ namespace JewelrySite.Controllers
 			return Ok(items);
 		}
 
-		[HttpGet("{id}")] 
-		public async Task<ActionResult<JewelryItem>> GetJewerlyById(int id) 
-		{
-			JewelryItem j = await _service.GetJewelryItemById(id);
-			if (j == null) {return NotFound();}
-			return Ok(j);
-		}
+                [HttpGet("{id}")]
+                public async Task<ActionResult<JewelryItemDetailDto>> GetJewerlyById(int id)
+                {
+                        JewelryItemDetailDto j = await _service.GetJewelryItemById(id);
+                        if (j == null) { return NotFound(); }
+                        return Ok(j);
+                }
 
 		[HttpPost]
 		public async Task<ActionResult<JewelryItem>> AddJewerlyItem(JewelryItem j)
