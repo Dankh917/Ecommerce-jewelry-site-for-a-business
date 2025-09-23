@@ -50,10 +50,12 @@ export default function JewelryItemPage() {
     // Build gallery once item loads
     const gallery: Media[] = item
         ? [
-            { type: "image" as const, url: item.mainImageUrl, alt: item.name },
-            ...(item.galleryImages ?? [])
-                .filter(img => img.url && img.url !== item.mainImageUrl)
-                .map(img => ({ type: "image" as const, url: img.url, alt: item.name })),
+              ...(item.mainImageUrl
+                  ? ([{ type: "image" as const, url: item.mainImageUrl, alt: item.name }] as Media[])
+                  : []),
+              ...(item.galleryImages ?? [])
+                  .filter(img => img.url && img.url !== item.mainImageUrl)
+                  .map(img => ({ type: "image" as const, url: img.url, alt: item.name })),
             ...(item.videoUrl
                 ? [
                       {
