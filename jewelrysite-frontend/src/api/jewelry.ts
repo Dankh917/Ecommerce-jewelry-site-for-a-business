@@ -1,6 +1,7 @@
 import { http } from "./http";
 import type { JewelryItemForCard } from "../types/JewelryItemForCard";
 import type { JewelryItemDetail } from "../types/JewelryItemDetail";
+import type { CreateJewelryItemRequest } from "../types/JewelryItemAdmin";
 
 export async function getCatalog(): Promise<JewelryItemForCard[]> {
     const res = await http.get<JewelryItemForCard[]>("/api/jewelryItem");
@@ -21,4 +22,13 @@ export async function getCollections(): Promise<string[]> {
 export async function getJewelryItemById(id: number): Promise<JewelryItemDetail> {
     const res = await http.get<JewelryItemDetail>(`/api/jewelryItem/${id}`);
     return res.data;
+}
+
+export async function addJewelryItem(data: CreateJewelryItemRequest) {
+    const res = await http.post("/api/jewelryItem", data);
+    return res.data;
+}
+
+export async function deleteJewelryItem(id: number) {
+    await http.delete("/api/jewelryItem", { params: { id } });
 }
