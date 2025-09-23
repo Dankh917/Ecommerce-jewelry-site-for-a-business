@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { decodeJwtPayload } from "../utils/jwt";
+import { extractRoles } from "../utils/roles";
 
 type Claims = {
     sub?: string | number;
@@ -27,6 +28,12 @@ export default function Header() {
     }, [jwtToken, user]);
 
     const isAuthenticated = Boolean(claims);
+    const roles = useMemo(() => extractRoles(claims), [claims]);
+    const isAdmin = useMemo(
+        () => roles.some(role => role.toLowerCase() === "admin"),
+        [roles]
+    );
+
     const links = [
         { to: "/", label: "Home" },
         { to: "/catalog", label: "Catalog" },
@@ -166,6 +173,37 @@ export default function Header() {
                     </nav>
 
                     <div className="ml-auto flex items-center gap-4">
+                        {isAdmin && (
+                            <Link
+                                to="/control-panel"
+                                aria-label="Admin control panel"
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-lg hover:bg-[rgba(0,0,0,0.06)]"
+                                title="Control Panel"
+                            >
+                                <svg
+                                    width="22"
+                                    height="22"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z"
+                                        stroke={BRAND}
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                    <path
+                                        d="M19.4 13a7.05 7.05 0 0 0 .06-2l2.04-1.16-2-3.46-2.36.62a6.99 6.99 0 0 0-1.74-1L15 3h-6l-.4 2.01c-.61.25-1.19.59-1.74 1l-2.36-.62-2 3.46L4.54 11a6.95 6.95 0 0 0 0 2l-2.04 1.16 2 3.46 2.36-.62c.55.41 1.13.75 1.74 1L9 21h6l.4-2.01c.61-.25 1.19-.59 1.74-1l2.36.62 2-3.46L19.4 13z"
+                                        stroke={BRAND}
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </Link>
+                        )}
                         {isAuthenticated && (
                             <>
                                 <span

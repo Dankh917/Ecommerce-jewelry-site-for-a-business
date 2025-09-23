@@ -5,6 +5,7 @@ import JewelryItemPage from "../pages/JewelryItemPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import CartPage from "../pages/CartPage";
+import ControlPanelPage from "../pages/ControlPanelPage";
 
 export default function AppRouter() {
     return (
@@ -16,6 +17,7 @@ export default function AppRouter() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/cart" element={<CartPage />} />
+                <Route path="/control-panel" element={<ControlPanelPage />} />
             </Routes>
         </BrowserRouter>
     );
