@@ -136,38 +136,46 @@ const buildPayloadFromForm = (state: FormState): BuildPayloadResult => {
     return { success: true, payload };
 };
 
-const mapDetailToFormState = (detail: JewelryItemDetail): FormState => ({
-    name: detail.name ?? "",
-    description: detail.description ?? "",
-    category: detail.category ?? "",
-    collection: detail.collection ?? "",
-    weightGrams: detail.weightGrams !== undefined && detail.weightGrams !== null ? String(detail.weightGrams) : "",
-    color: detail.color ?? "",
-    sizeCM: detail.sizeCM ?? "",
-    price: detail.price !== undefined && detail.price !== null ? String(detail.price) : "",
-    stockQuantity:
-        detail.stockQuantity !== undefined && detail.stockQuantity !== null ? String(detail.stockQuantity) : "",
-    isAvailable: detail.isAvailable ?? true,
-    mainImageUrl: detail.mainImageUrl ?? "",
-    galleryImages:
-        detail.galleryImages && detail.galleryImages.length > 0
-            ? detail.galleryImages.map(image => ({
-                  url: image.url ?? "",
-                  sortOrder:
-                      image.sortOrder !== undefined && image.sortOrder !== null
-                          ? String(image.sortOrder)
-                          : "",
-              }))
-            : [{ url: "", sortOrder: "" }],
-    videoUrl: detail.videoUrl ?? "",
-    videoPosterUrl: detail.videoPosterUrl ?? "",
-    videoDurationSeconds:
-        detail.videoDurationSeconds !== undefined && detail.videoDurationSeconds !== null
-            ? String(detail.videoDurationSeconds)
-            : "",
-    shippingPrice:
-        detail.shippingPrice !== undefined && detail.shippingPrice !== null ? String(detail.shippingPrice) : "",
-});
+const mapDetailToFormState = (detail: JewelryItemDetail): FormState => {
+    const sortedGallery = [...(detail.galleryImages ?? [])].sort((a, b) => {
+        const aOrder = a.sortOrder ?? 0;
+        const bOrder = b.sortOrder ?? 0;
+        return aOrder - bOrder;
+    });
+
+    return {
+        name: detail.name ?? "",
+        description: detail.description ?? "",
+        category: detail.category ?? "",
+        collection: detail.collection ?? "",
+        weightGrams: detail.weightGrams !== undefined && detail.weightGrams !== null ? String(detail.weightGrams) : "",
+        color: detail.color ?? "",
+        sizeCM: detail.sizeCM ?? "",
+        price: detail.price !== undefined && detail.price !== null ? String(detail.price) : "",
+        stockQuantity:
+            detail.stockQuantity !== undefined && detail.stockQuantity !== null ? String(detail.stockQuantity) : "",
+        isAvailable: detail.isAvailable ?? true,
+        mainImageUrl: detail.mainImageUrl ?? "",
+        galleryImages:
+            sortedGallery.length > 0
+                ? sortedGallery.map(image => ({
+                      url: image.url ?? "",
+                      sortOrder:
+                          image.sortOrder !== undefined && image.sortOrder !== null
+                              ? String(image.sortOrder)
+                              : "",
+                  }))
+                : [{ url: "", sortOrder: "" }],
+        videoUrl: detail.videoUrl ?? "",
+        videoPosterUrl: detail.videoPosterUrl ?? "",
+        videoDurationSeconds:
+            detail.videoDurationSeconds !== undefined && detail.videoDurationSeconds !== null
+                ? String(detail.videoDurationSeconds)
+                : "",
+        shippingPrice:
+            detail.shippingPrice !== undefined && detail.shippingPrice !== null ? String(detail.shippingPrice) : "",
+    };
+};
 
 function resolveErrorMessage(error: unknown): string {
     if (isAxiosError(error)) {
@@ -217,10 +225,12 @@ export default function ControlPanelPage() {
     const [updateSearchTerm, setUpdateSearchTerm] = useState("");
     const [updateFormState, setUpdateFormState] = useState<FormState>(() => createInitialFormState());
     const [selectedUpdateItemId, setSelectedUpdateItemId] = useState<number | null>(null);
+    const [selectedUpdateItemName, setSelectedUpdateItemName] = useState<string | null>(null);
     const [updateLoading, setUpdateLoading] = useState(false);
     const [updateSubmitting, setUpdateSubmitting] = useState(false);
     const [banner, setBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const updateRequestIdRef = useRef(0);
 
     const showBanner = useCallback((type: "success" | "error", message: string, duration = 3500) => {
         setBanner({ type, message });
@@ -385,20 +395,45 @@ export default function ControlPanelPage() {
     const handleSelectForUpdate = useCallback(
         async (item: JewelryItemForCard) => {
             if (!isAdmin) return;
+
+            const requestId = updateRequestIdRef.current + 1;
+            updateRequestIdRef.current = requestId;
+
             setSelectedUpdateItemId(item.id);
+            setSelectedUpdateItemName(item.name);
+            setUpdateFormState(createInitialFormState());
             setUpdateLoading(true);
+
             try {
                 const detail = await getJewelryItemById(item.id);
+                if (updateRequestIdRef.current !== requestId) {
+                    return;
+                }
                 setUpdateFormState(mapDetailToFormState(detail));
+                setSelectedUpdateItemName(detail.name ?? item.name);
             } catch (error) {
-                showBanner("error", resolveErrorMessage(error), 5000);
-                setSelectedUpdateItemId(null);
+                if (updateRequestIdRef.current === requestId) {
+                    showBanner("error", resolveErrorMessage(error), 5000);
+                    setSelectedUpdateItemId(null);
+                    setSelectedUpdateItemName(null);
+                }
             } finally {
-                setUpdateLoading(false);
+                if (updateRequestIdRef.current === requestId) {
+                    setUpdateLoading(false);
+                }
             }
         },
         [isAdmin, showBanner]
     );
+
+    const handleCancelUpdate = useCallback(() => {
+        updateRequestIdRef.current += 1;
+        setSelectedUpdateItemId(null);
+        setSelectedUpdateItemName(null);
+        setUpdateFormState(createInitialFormState());
+        setUpdateLoading(false);
+        setUpdateSubmitting(false);
+    }, []);
 
     const handleUpdateSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -415,14 +450,23 @@ export default function ControlPanelPage() {
             await updateJewelryItem(selectedUpdateItemId, result.payload);
             showBanner("success", `“${result.payload.name}” was updated.`);
             await refreshCatalog();
+            const requestId = updateRequestIdRef.current + 1;
+            updateRequestIdRef.current = requestId;
             try {
                 setUpdateLoading(true);
                 const latest = await getJewelryItemById(selectedUpdateItemId);
-                setUpdateFormState(mapDetailToFormState(latest));
+                if (updateRequestIdRef.current === requestId) {
+                    setUpdateFormState(mapDetailToFormState(latest));
+                    setSelectedUpdateItemName(latest.name ?? result.payload.name);
+                }
             } catch (refreshError) {
-                console.warn("Failed to refresh updated item", refreshError);
+                if (updateRequestIdRef.current === requestId) {
+                    console.warn("Failed to refresh updated item", refreshError);
+                }
             } finally {
-                setUpdateLoading(false);
+                if (updateRequestIdRef.current === requestId) {
+                    setUpdateLoading(false);
+                }
             }
         } catch (error) {
             showBanner("error", resolveErrorMessage(error), 5000);
@@ -741,23 +785,46 @@ export default function ControlPanelPage() {
                                         <div className="rounded-lg border border-dashed border-gray-300 bg-white/70 px-4 py-6 text-sm text-gray-500 text-center">
                                             Select an item above to load its details.
                                         </div>
-                                    ) : updateLoading ? (
-                                        <div className="text-sm text-gray-600">Loading item details…</div>
                                     ) : (
-                                        <ItemForm
-                                            formState={updateFormState}
-                                            onFieldChange={updateExistingFormField}
-                                            onGalleryChange={handleUpdateGalleryChange}
-                                            onAddGalleryRow={addUpdateGalleryRow}
-                                            onRemoveGalleryRow={removeUpdateGalleryRow}
-                                            onSubmit={handleUpdateSubmit}
-                                            submitting={updateSubmitting}
-                                            submitLabel="Modify item"
-                                            submittingLabel="Saving changes…"
-                                            categorySuggestions={categorySuggestions}
-                                            collectionSuggestions={collectionSuggestions}
-                                            brandColor={BRAND_COLOR}
-                                        />
+                                        <div className="space-y-4">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-700">
+                                                        {selectedUpdateItemName
+                                                            ? `Editing: ${selectedUpdateItemName}`
+                                                            : "Modify selected item"}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        Changes are only saved after selecting “Modify item”.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCancelUpdate}
+                                                    className="inline-flex items-center justify-center rounded-full border border-gray-300 px-4 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+                                                >
+                                                    Close without saving
+                                                </button>
+                                            </div>
+                                            {updateLoading ? (
+                                                <div className="text-sm text-gray-600">Loading item details…</div>
+                                            ) : (
+                                                <ItemForm
+                                                    formState={updateFormState}
+                                                    onFieldChange={updateExistingFormField}
+                                                    onGalleryChange={handleUpdateGalleryChange}
+                                                    onAddGalleryRow={addUpdateGalleryRow}
+                                                    onRemoveGalleryRow={removeUpdateGalleryRow}
+                                                    onSubmit={handleUpdateSubmit}
+                                                    submitting={updateSubmitting}
+                                                    submitLabel="Modify item"
+                                                    submittingLabel="Saving changes…"
+                                                    categorySuggestions={categorySuggestions}
+                                                    collectionSuggestions={collectionSuggestions}
+                                                    brandColor={BRAND_COLOR}
+                                                />
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -970,6 +1037,26 @@ function ItemForm({
                         onChange={event => onFieldChange("mainImageUrl", event.target.value)}
                         placeholder="https://..."
                     />
+                    {formState.mainImageUrl && (
+                        <div className="flex items-center gap-3 pt-2">
+                            <div className="h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-white">
+                                <img
+                                    src={formState.mainImageUrl}
+                                    alt={`${formState.name || "Main"} preview`}
+                                    className="h-full w-full object-cover"
+                                />
+                            </div>
+                            <a
+                                href={formState.mainImageUrl}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="text-xs font-semibold"
+                                style={{ color: brandColor }}
+                            >
+                                Open full size
+                            </a>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1024,6 +1111,26 @@ function ItemForm({
                                     />
                                 </div>
                             </div>
+                            {row.url && (
+                                <div className="flex items-center gap-3 pt-1">
+                                    <div className="h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-white">
+                                        <img
+                                            src={row.url}
+                                            alt={`Gallery image ${index + 1}`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                    <a
+                                        href={row.url}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="text-xs font-semibold"
+                                        style={{ color: brandColor }}
+                                    >
+                                        Open image
+                                    </a>
+                                </div>
+                            )}
                             {formState.galleryImages.length > 1 && (
                                 <div className="text-right">
                                     <button
