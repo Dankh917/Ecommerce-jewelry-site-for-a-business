@@ -650,8 +650,8 @@ export default function ControlPanelPage() {
                                                 key={item.id}
                                                 className="rounded-xl border border-gray-200 bg-white/90 p-4 shadow-sm hover:shadow-md transition-shadow"
                                             >
-                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                                                    <div className="flex items-center gap-4 flex-1">
+                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between sm:gap-6">
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
                                                         <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-white border border-gray-200 flex items-center justify-center">
                                                             {item.mainImageUrl ? (
                                                                 <img
@@ -680,14 +680,14 @@ export default function ControlPanelPage() {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex flex-col gap-2 sm:items-end">
+                                                    <div className="flex flex-col gap-2 sm:w-52 sm:flex-none sm:justify-center sm:text-right">
                                                         {deleteConfirmationId === item.id ? (
-                                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                                                                 <button
                                                                     type="button"
                                                                     onClick={cancelDeleteRequest}
                                                                     disabled={deletingId === item.id}
-                                                                    className="inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+                                                                    className="inline-flex w-full items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                                                                 >
                                                                     Keep item
                                                                 </button>
@@ -695,18 +695,18 @@ export default function ControlPanelPage() {
                                                                     type="button"
                                                                     onClick={() => handleDelete(item)}
                                                                     disabled={deletingId === item.id}
-                                                                    className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-70"
+                                                                    className="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                                                                     style={{ backgroundColor: deletingId === item.id ? "#b91c1c" : "#dc2626" }}
                                                                 >
                                                                     {deletingId === item.id ? "Deleting…" : "Confirm delete"}
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex flex-col gap-1 text-sm text-red-700 sm:items-end">
+                                                            <div className="flex flex-col gap-1 text-sm text-red-700">
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => requestDeleteConfirmation(item.id)}
-                                                                    className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg"
+                                                                    className="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg sm:w-auto"
                                                                     style={{ backgroundColor: "#dc2626" }}
                                                                 >
                                                                     Delete
