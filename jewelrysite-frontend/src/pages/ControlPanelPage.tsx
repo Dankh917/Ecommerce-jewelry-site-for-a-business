@@ -221,6 +221,7 @@ export default function ControlPanelPage() {
     const [itemsError, setItemsError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [deleteConfirmationId, setDeleteConfirmationId] = useState<number | null>(null);
     const [deleteSearchTerm, setDeleteSearchTerm] = useState("");
     const [updateSearchTerm, setUpdateSearchTerm] = useState("");
     const [updateFormState, setUpdateFormState] = useState<FormState>(() => createInitialFormState());
@@ -374,11 +375,17 @@ export default function ControlPanelPage() {
         }
     };
 
+    const requestDeleteConfirmation = (itemId: number) => {
+        setDeleteConfirmationId(prev => (prev === itemId ? null : itemId));
+    };
+
+    const cancelDeleteRequest = () => {
+        setDeleteConfirmationId(null);
+    };
+
     const handleDelete = async (item: JewelryItemForCard) => {
         if (!isAdmin) return;
-        const confirmed = window.confirm(`Are you sure you want to delete "${item.name}"?`);
-        if (!confirmed) return;
-
+        setDeleteConfirmationId(item.id);
         setDeletingId(item.id);
         try {
             await deleteJewelryItem(item.id);
@@ -388,6 +395,7 @@ export default function ControlPanelPage() {
         } catch (error) {
             showBanner("error", resolveErrorMessage(error), 5000);
         } finally {
+            setDeleteConfirmationId(null);
             setDeletingId(null);
         }
     };
@@ -672,15 +680,43 @@ export default function ControlPanelPage() {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDelete(item)}
-                                                        disabled={deletingId === item.id}
-                                                        className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-70"
-                                                        style={{ backgroundColor: deletingId === item.id ? "#b91c1c" : "#dc2626" }}
-                                                    >
-                                                        {deletingId === item.id ? "Deleting…" : "Delete"}
-                                                    </button>
+                                                    <div className="flex flex-col gap-2 sm:items-end">
+                                                        {deleteConfirmationId === item.id ? (
+                                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={cancelDeleteRequest}
+                                                                    disabled={deletingId === item.id}
+                                                                    className="inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+                                                                >
+                                                                    Keep item
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDelete(item)}
+                                                                    disabled={deletingId === item.id}
+                                                                    className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-70"
+                                                                    style={{ backgroundColor: deletingId === item.id ? "#b91c1c" : "#dc2626" }}
+                                                                >
+                                                                    {deletingId === item.id ? "Deleting…" : "Confirm delete"}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-1 text-sm text-red-700 sm:items-end">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => requestDeleteConfirmation(item.id)}
+                                                                    className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg"
+                                                                    style={{ backgroundColor: "#dc2626" }}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                                <span className="text-xs font-medium text-red-500 sm:text-right">
+                                                                    This can’t be undone
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </li>
                                         ))}
