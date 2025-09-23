@@ -580,7 +580,7 @@ export default function ControlPanelPage() {
                         </div>
                     )}
 
-                    <div className="grid gap-10 lg:grid-cols-[minmax(0,_3fr)_minmax(0,_2fr)]">
+                    <div className="grid gap-10 lg:grid-cols-[minmax(0,_3fr)_minmax(0,_2fr)] lg:items-start">
                         <section className="bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden">
                             <div className="px-6 py-5" style={{ backgroundColor: SECTION_HEADER }}>
                                 <h2 className="text-xl font-bold" style={{ color: BRAND_COLOR }}>
@@ -607,124 +607,6 @@ export default function ControlPanelPage() {
                         </section>
 
                         <section className="bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden">
-                            <div className="px-6 py-5" style={{ backgroundColor: SECTION_HEADER }}>
-                                <h2 className="text-xl font-bold" style={{ color: BRAND_COLOR }}>
-                                    Remove an item from the shop
-                                </h2>
-                                <p className="text-sm text-gray-600 mt-1">
-                                    Review the active inventory and retire items that should no longer be for sale.
-                                </p>
-                            </div>
-                            <div className="p-6 space-y-5">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="delete-search">
-                                        Search catalog
-                                    </label>
-                                    <input
-                                        id="delete-search"
-                                        type="search"
-                                        value={deleteSearchTerm}
-                                        onChange={event => setDeleteSearchTerm(event.target.value)}
-                                        placeholder="Search by name, category, collection, or color"
-                                        className="w-full rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[rgba(107,140,142,0.35)]"
-                                    />
-                                </div>
-                                {itemsLoading ? (
-                                    <div className="text-sm text-gray-600">Loading available items…</div>
-                                ) : itemsError ? (
-                                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                        {itemsError}
-                                    </div>
-                                ) : noItemsInCatalog ? (
-                                    <div className="rounded-lg border border-dashed border-gray-300 bg-white/70 px-4 py-6 text-sm text-gray-500 text-center">
-                                        No items found. Add new pieces to see them listed here.
-                                    </div>
-                                ) : noDeleteMatches ? (
-                                    <div className="rounded-lg border border-dashed border-gray-300 bg-white/70 px-4 py-6 text-sm text-gray-500 text-center">
-                                        No items match your search. Try a different keyword.
-                                    </div>
-                                ) : (
-                                    <ul className="space-y-4">
-                                        {filteredDeleteItems.map(item => (
-                                            <li
-                                                key={item.id}
-                                                className="rounded-xl border border-gray-200 bg-white/90 p-4 shadow-sm hover:shadow-md transition-shadow"
-                                            >
-                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between sm:gap-6">
-                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                        <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-white border border-gray-200 flex items-center justify-center">
-                                                            {item.mainImageUrl ? (
-                                                                <img
-                                                                    src={item.mainImageUrl}
-                                                                    alt={item.name}
-                                                                    className="h-full w-full object-cover"
-                                                                />
-                                                            ) : (
-                                                                <span className="text-[10px] uppercase tracking-wide text-gray-400">
-                                                                    No image
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <h3 className="text-base font-semibold text-gray-800 truncate">{item.name}</h3>
-                                                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-gray-500">
-                                                                <span>{item.category}</span>
-                                                                {item.collection && <span>Collection: {item.collection}</span>}
-                                                                <span>{item.isAvailable ? "Available" : "Hidden"}</span>
-                                                            </div>
-                                                            <p className="mt-1 text-sm text-gray-600">
-                                                                {item.price.toLocaleString(undefined, {
-                                                                    style: "currency",
-                                                                    currency: "USD",
-                                                                })}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-col gap-2 sm:w-52 sm:flex-none sm:justify-center sm:text-right">
-                                                        {deleteConfirmationId === item.id ? (
-                                                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={cancelDeleteRequest}
-                                                                    disabled={deletingId === item.id}
-                                                                    className="inline-flex w-full items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                                                                >
-                                                                    Keep item
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleDelete(item)}
-                                                                    disabled={deletingId === item.id}
-                                                                    className="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                                                                    style={{ backgroundColor: deletingId === item.id ? "#b91c1c" : "#dc2626" }}
-                                                                >
-                                                                    {deletingId === item.id ? "Deleting…" : "Confirm delete"}
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex flex-col gap-1 text-sm text-red-700">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => requestDeleteConfirmation(item.id)}
-                                                                    className="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg sm:w-auto"
-                                                                    style={{ backgroundColor: "#dc2626" }}
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                                <span className="text-xs font-medium text-red-500 sm:text-right">
-                                                                    This can’t be undone
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        </section>
-                        <section className="bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden lg:col-span-2">
                             <div className="px-6 py-5" style={{ backgroundColor: SECTION_HEADER }}>
                                 <h2 className="text-xl font-bold" style={{ color: BRAND_COLOR }}>
                                     Update an existing item
@@ -866,6 +748,117 @@ export default function ControlPanelPage() {
                             </div>
                         </section>
                     </div>
+
+                    <section className="bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden mt-10 lg:mt-12">
+                        <div className="px-6 py-5" style={{ backgroundColor: SECTION_HEADER }}>
+                            <h2 className="text-xl font-bold" style={{ color: BRAND_COLOR }}>
+                                Remove an item from the shop
+                            </h2>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Review the active inventory and retire items that should no longer be for sale.
+                            </p>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="delete-search">
+                                    Search catalog
+                                </label>
+                                <input
+                                    id="delete-search"
+                                    type="search"
+                                    value={deleteSearchTerm}
+                                    onChange={event => setDeleteSearchTerm(event.target.value)}
+                                    placeholder="Search by name, category, collection, or color"
+                                    className="w-full rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[rgba(107,140,142,0.35)]"
+                                />
+                            </div>
+                            {itemsLoading ? (
+                                <div className="text-sm text-gray-600">Loading available items…</div>
+                            ) : itemsError ? (
+                                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    {itemsError}
+                                </div>
+                            ) : noItemsInCatalog ? (
+                                <div className="rounded-lg border border-dashed border-gray-300 bg-white/70 px-4 py-6 text-sm text-gray-500 text-center">
+                                    No items found. Add new pieces to see them listed here.
+                                </div>
+                            ) : noDeleteMatches ? (
+                                <div className="rounded-lg border border-dashed border-gray-300 bg-white/70 px-4 py-6 text-sm text-gray-500 text-center">
+                                    No items match your search. Try a different keyword.
+                                </div>
+                            ) : (
+                                <ul className="space-y-4">
+                                    {filteredDeleteItems.map(item => (
+                                        <li
+                                            key={item.id}
+                                            className="rounded-xl border border-gray-200 bg-white/90 p-4 shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between sm:gap-6">
+                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-white border border-gray-200 flex items-center justify-center">
+                                                        {item.mainImageUrl ? (
+                                                            <img src={item.mainImageUrl} alt={item.name} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-[10px] uppercase tracking-wide text-gray-400">No image</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="text-base font-semibold text-gray-800 truncate">{item.name}</h3>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-gray-500">
+                                                            <span>{item.category}</span>
+                                                            {item.collection && <span>Collection: {item.collection}</span>}
+                                                            <span>{item.isAvailable ? "Available" : "Hidden"}</span>
+                                                        </div>
+                                                        <p className="mt-1 text-sm text-gray-600">
+                                                            {item.price.toLocaleString(undefined, {
+                                                                style: "currency",
+                                                                currency: "USD",
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-2 sm:flex-none sm:items-end sm:justify-center sm:text-right">
+                                                    {deleteConfirmationId === item.id ? (
+                                                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                                                            <button
+                                                                type="button"
+                                                                onClick={cancelDeleteRequest}
+                                                                disabled={deletingId === item.id}
+                                                                className="inline-flex w-full items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                                                            >
+                                                                Keep item
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDelete(item)}
+                                                                disabled={deletingId === item.id}
+                                                                className="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                                                                style={{ backgroundColor: deletingId === item.id ? "#b91c1c" : "#dc2626" }}
+                                                            >
+                                                                {deletingId === item.id ? "Deleting…" : "Confirm delete"}
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col gap-1 text-sm text-red-700">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => requestDeleteConfirmation(item.id)}
+                                                                className="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg sm:w-auto"
+                                                                style={{ backgroundColor: "#dc2626" }}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                            <span className="text-xs font-medium text-red-500 sm:text-right">This can’t be undone</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </section>
                 </div>
             </main>
         </div>
