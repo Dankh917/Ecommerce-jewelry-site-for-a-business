@@ -56,13 +56,18 @@ namespace JewelrySite.DAL
 		}
 
 
-		public async Task<User?> RegisterAsync(UserDto request)
-		{
-			if (await _db.Users.AnyAsync(u => u.Username == request.Username)) {
-				return null; //cannot register with that name  since we have someone with that name 
-			}
-			
-			User user = new User();
+                public async Task<User?> RegisterAsync(UserDto request)
+                {
+                        if (!PasswordPolicy.IsValid(request.Password))
+                        {
+                                throw new InvalidOperationException("Password must be at least 8 characters long and include at least one digit.");
+                        }
+
+                        if (await _db.Users.AnyAsync(u => u.Username == request.Username)) {
+                                return null; //cannot register with that name  since we have someone with that name
+                        }
+
+                        User user = new User();
 			
 			string hashedPassword = new PasswordHasher<User>()
 				.HashPassword(user, request.Password);

@@ -1,28 +1,42 @@
 import { useState } from "react";
+import { isAxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { register } from "../api/auth";
+import { validatePassword } from "../utils/passwordPolicy";
 
 export default function RegisterPage() {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
     const navigate = useNavigate();
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters");
+        const validationErrors = validatePassword(password);
+        setPasswordErrors(validationErrors);
+        if (validationErrors.length > 0) {
+            setError("Please fix the highlighted password issues.");
             return;
         }
         try {
             await register({ username, email, password });
             navigate("/login");
         } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : "Registration failed";
-            setError(message);
+            if (isAxiosError(e)) {
+                const serverMessage =
+                    (typeof e.response?.data === "string"
+                        ? e.response.data
+                        : e.response?.data?.message) ||
+                    e.message;
+                setError(serverMessage ?? "Registration failed");
+            } else {
+                const message = e instanceof Error ? e.message : "Registration failed";
+                setError(message);
+            }
         }
     };
 
@@ -67,9 +81,23 @@ export default function RegisterPage() {
                             type="password"
                             className="input input-bordered w-full"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setPassword(value);
+                                setPasswordErrors(validatePassword(value));
+                            }}
                             required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Use at least 8 characters and include a number.
+                        </p>
+                        {passwordErrors.length > 0 && (
+                            <ul className="mt-2 text-xs text-red-600 space-y-1">
+                                {passwordErrors.map((msg) => (
+                                    <li key={msg}>{msg}</li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                     <button
                         type="submit"
