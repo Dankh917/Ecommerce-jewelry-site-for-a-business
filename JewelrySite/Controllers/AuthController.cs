@@ -23,13 +23,20 @@ namespace JewelrySite.Controllers
 
 		public static User user = new User();
 
-		[HttpPost("register")]
-		public async Task<ActionResult<User>> register(UserDto request)
-		{
-			User user = await _service.RegisterAsync(request);
-			if (user == null) { return BadRequest("Such user already exists");}
-			return Ok(user);
-		}
+                [HttpPost("register")]
+                public async Task<ActionResult<User>> register(UserDto request)
+                {
+                        try
+                        {
+                                User user = await _service.RegisterAsync(request);
+                                if (user == null) { return BadRequest("Such user already exists"); }
+                                return Ok(user);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                                return BadRequest(ex.Message);
+                        }
+                }
 
                 [HttpPost("login")]
                 public async Task<ActionResult<LoginResponseDto>> Login(LoginDto request)
