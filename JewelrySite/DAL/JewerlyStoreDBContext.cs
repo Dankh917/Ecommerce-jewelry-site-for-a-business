@@ -10,8 +10,9 @@ namespace JewelrySite.DAL
 		public DbSet<User> Users => Set<User>();
 		public DbSet<CartItem> CartItems => Set<CartItem>();
 		public DbSet<Cart> Carts => Set<Cart>();
+		public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
 
 
-		
+
 	}
 }

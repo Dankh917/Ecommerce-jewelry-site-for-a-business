@@ -1,7 +1,11 @@
 ﻿using Azure.Core;
 using JewelrySite.BL;
 using JewelrySite.DTO;
+using JewelrySite.HelperClasses;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -24,7 +28,9 @@ namespace JewelrySite.DAL
 			_db = db;
 		}
 
-                public async Task<LoginResponseDto?> LoginAsync(LoginDto request)
+	
+
+		public async Task<LoginResponseDto?> LoginAsync(LoginDto request)
                 {
                         User user = _db.Users.FirstOrDefault(u => u.Email == request.Email);
 
@@ -143,6 +149,127 @@ namespace JewelrySite.DAL
 			 
 			return await CreateTokenResponse(user);
 		}
+
+		
+		public async Task<string> ForgotPassword(string email)
+		{
+			if (string.IsNullOrWhiteSpace(email))
+			{
+				throw new ArgumentException("Email is required , request failed", nameof(email));
+			}
+				
+
+			var normalizedEmail = email.Trim().ToLowerInvariant();
+
+			// Try to find the user (normalize to avoid case mismatches)
+			var user = await _db.Users.SingleOrDefaultAsync(u => u.Email.Trim().ToLower() == normalizedEmail);
+
+			// Add a tiny delay so attackers can't measure timing
+			await Task.Delay(Random.Shared.Next(50, 150));
+
+			if (user != null)
+			{
+				var now = DateTime.UtcNow;
+
+				// Check if user already has an active reset token
+				var hasActiveToken = await _db.PasswordResetRequests
+					.AnyAsync(r => r.UserId == user.Id && r.UsedAtUtc == null && r.ExpiresAtUtc > now);
+
+				if (!hasActiveToken)
+				{
+					// Generate secure random token
+					var tokenBytes = RandomNumberGenerator.GetBytes(32); // 256-bit
+					var token = WebEncoders.Base64UrlEncode(tokenBytes);
+
+					// Store only the hash in the DB
+					using var sha = SHA256.Create();
+					var tokenHash = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(token)));
+
+					var reset = new PasswordResetRequest
+					{
+						UserId = user.Id,
+						TokenHash = tokenHash,
+						CreatedAtUtc = now,
+						ExpiresAtUtc = now.AddMinutes(30)
+					};
+
+					_db.PasswordResetRequests.Add(reset);
+					await _db.SaveChangesAsync();
+
+					// Build reset link (frontend route)
+					string baseUrl = _configuration.GetValue<string>("Frontend:BaseUrl") ?? throw new InvalidOperationException("Frontend:BaseUrl is not configured."); 
+					var resetUrl = $"{baseUrl}/reset-password?token={token}";
+
+					// Send email
+					await EmailService.SendAsync(
+						to: user.Email,
+						subject: "Reset your EDTArt password",
+						
+						htmlBody: $"""
+						<p>We received a request to reset your password.</p>
+						<p><a href="{resetUrl}">Reset Password</a> (valid for 30 minutes)</p>
+						<p>If you didn’t request this, you can safely ignore this email.</p>
+						"""
+
+					);
+				}
+			}
+
+			return "we sent an email with a password reset link";
+		}
+
+
+		public async Task ResetPasswordAsync(string token, string newPassword)
+		{
+			if (string.IsNullOrWhiteSpace(token))
+				throw new ArgumentException("Token is required.", nameof(token));
+			if (string.IsNullOrWhiteSpace(newPassword))
+				throw new ArgumentException("New password is required.", nameof(newPassword));
+
+			if (!PasswordPolicy.IsValid(newPassword))
+				throw new InvalidOperationException("Password does not meet requirements.");
+
+			// Hash the opaque token to match stored hash
+			using var sha = SHA256.Create();
+			var tokenHash = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(token)));
+			var now = DateTime.UtcNow;
+
+			// Find reset request by hash
+			var reset = await _db.PasswordResetRequests
+				.SingleOrDefaultAsync(r => r.TokenHash == tokenHash);
+
+			if (reset is null || reset.UsedAtUtc != null || reset.ExpiresAtUtc < now)
+				throw new UnauthorizedAccessException("Invalid or expired reset token.");
+
+			// Get user by FK
+			var user = await _db.Users.FindAsync(reset.UserId);
+			if (user is null)
+				throw new KeyNotFoundException("User not found for reset token.");
+
+			// Wrap in transaction so both updates happen atomically
+			await using var tx = await _db.Database.BeginTransactionAsync();
+			try
+			{
+				// Hash new password (same way as registration)
+				string hashedPassword = new PasswordHasher<User>()
+					.HashPassword(user, newPassword);
+
+				user.PasswordHash = hashedPassword;
+
+				// Mark reset token as consumed
+				reset.UsedAtUtc = now;
+
+				await _db.SaveChangesAsync();
+				await tx.CommitAsync();
+			}
+			catch
+			{
+				await tx.RollbackAsync();
+				throw;
+			}
+		}
+
+
 
 	}
 }
