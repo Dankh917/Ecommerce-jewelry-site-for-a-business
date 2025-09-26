@@ -34,6 +34,8 @@ namespace JewelrySite
 			builder.Services.AddScoped<CartService>();
 			builder.Services.AddScoped<JewelryItemService>();
 			builder.Services.AddScoped<AuthService>();
+			EmailService.Init(builder.Configuration);
+
 
 			builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 				.AddJwtBearer(options =>
