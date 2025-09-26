@@ -48,18 +48,34 @@ namespace JewelrySite.Controllers
 			return Ok(result);
 		}
 
-		[Authorize]
-		[HttpGet]
-		public IActionResult AuthOnly()
+		[HttpPost("forgot-password")]
+		public async Task<IActionResult> ForgotPassword([FromBody] string email)
 		{
-			return Ok("You are authenticated and can access this endpoint.");
+			try
+			{
+				var msg = await _service.ForgotPassword(email);
+				return Ok(new { message = msg });   // generic message to avoid enumeration
+			}
+			catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+			catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
 		}
-		
-		[Authorize(Roles ="Admin")]
-		[HttpGet("Admin-only")]
-		public IActionResult AdminOnly()
+
+		[AllowAnonymous]
+		[HttpPost("reset-password")]
+		public async Task<IActionResult> ResetPassword(string token, string newPassword)
 		{
-			return Ok("You are authenticated and can access this endpoint.");
+			try
+			{
+				await _service.ResetPasswordAsync(token, newPassword);
+				return Ok(new { message = "Password has been reset successfully." });
+			}
+
+			catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+			catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+			catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+			catch (KeyNotFoundException) { return Unauthorized(new { message = "Invalid or expired reset token." }); }
 		}
+
+
 	}
 }
