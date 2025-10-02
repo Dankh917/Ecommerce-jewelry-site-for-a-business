@@ -1,6 +1,7 @@
 using JewelrySite.BL;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace JewelrySite.DTO
 {
@@ -9,6 +10,7 @@ namespace JewelrySite.DTO
                 [Required, MaxLength(100)]
                 public string FullName { get; set; } = string.Empty;
 
+                [JsonPropertyName("phoneNumber")]
                 [Required, MaxLength(30)]
                 public string Phone { get; set; } = string.Empty;
 
@@ -30,6 +32,7 @@ namespace JewelrySite.DTO
                 [MaxLength(128)]
                 public string? PaymentReference { get; set; }
 
+                [JsonPropertyName("notes")]
                 [MaxLength(500)]
                 public string? PaymentNotes { get; set; }
 
