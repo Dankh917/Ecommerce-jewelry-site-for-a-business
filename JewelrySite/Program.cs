@@ -31,7 +31,8 @@ namespace JewelrySite
 
             builder.Services.AddDbContext<JewerlyStoreDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionDB")));
 
-			builder.Services.AddScoped<CartService>();
+                        builder.Services.AddScoped<CartService>();
+                        builder.Services.AddScoped<OrderService>();
 			builder.Services.AddScoped<JewelryItemService>();
 			builder.Services.AddScoped<AuthService>();
 			EmailService.Init(builder.Configuration);
