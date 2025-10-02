@@ -65,7 +65,7 @@ namespace JewelrySite.DTO
                 public decimal TaxVat { get; set; }
                 public decimal DiscountTotal { get; set; }
                 public decimal GrandTotal { get; set; }
-                public string CurrencyCode { get; set; } = "ILS";
+                public string CurrencyCode { get; set; } = "USD";
                 public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
         }
 }

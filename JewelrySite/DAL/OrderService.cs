@@ -55,7 +55,7 @@ namespace JewelrySite.DAL
                                         Notes = request.PaymentNotes,
                                         PaymentProvider = request.PaymentMethod,
                                         PaymentRef = request.PaymentReference,
-                                        CurrencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode) ? "ILS" : request.CurrencyCode!
+                                        CurrencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode) ? "USD" : request.CurrencyCode!
                                 };
 
                                 foreach (var cartItem in cart.Items)

@@ -141,6 +141,7 @@ export default function CartPage() {
         return value.toLocaleString(undefined, {
             style: "currency",
             currency: "USD",
+            currencyDisplay: "code",
             minimumFractionDigits: 2,
         });
     }, []);

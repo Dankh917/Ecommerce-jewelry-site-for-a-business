@@ -5,6 +5,7 @@ export default function JewelryCard({ item }: { item: JewelryItemForCard }) {
     const price = Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
+        currencyDisplay: "code",
     }).format(item.price);
 
     return (
