@@ -267,6 +267,7 @@ export default function CartPage() {
                                 </div>
                                 <button
                                     type="button"
+                                    onClick={() => navigate("/checkout")}
                                     className="w-full mt-4 inline-flex items-center justify-center px-5 py-3 rounded-lg text-white font-semibold shadow-lg"
                                     style={{ backgroundColor: "#6B8C8E" }}
                                 >
