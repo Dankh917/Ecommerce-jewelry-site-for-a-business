@@ -68,4 +68,30 @@ namespace JewelrySite.DTO
                 public string CurrencyCode { get; set; } = "USD";
                 public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
         }
+
+        public class OrderSummaryDto
+        {
+                public int OrderId { get; set; }
+                public DateTime CreatedAt { get; set; }
+                public OrderStatus Status { get; set; }
+                public decimal GrandTotal { get; set; }
+                public string CurrencyCode { get; set; } = "USD";
+                public int ItemCount { get; set; }
+        }
+
+        public class OrderDetailDto : OrderSummaryDto
+        {
+                public decimal Subtotal { get; set; }
+                public decimal Shipping { get; set; }
+                public decimal TaxVat { get; set; }
+                public decimal DiscountTotal { get; set; }
+                public string FullName { get; set; } = string.Empty;
+                public string Phone { get; set; } = string.Empty;
+                public string Country { get; set; } = string.Empty;
+                public string City { get; set; } = string.Empty;
+                public string Street { get; set; } = string.Empty;
+                public string? PostalCode { get; set; }
+                public string? Notes { get; set; }
+                public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
+        }
 }

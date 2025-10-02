@@ -8,7 +8,7 @@ import { resolveUserId } from "../utils/user";
 import { getCart } from "../api/cart";
 import { createOrder } from "../api/orders";
 import type { CartItemSummary, CartResponse } from "../types/Cart";
-import type { OrderResponse } from "../types/Order";
+import type { OrderConfirmationResponse } from "../types/Order";
 
 interface CheckoutFormData {
     fullName: string;
@@ -21,7 +21,7 @@ interface CheckoutFormData {
 }
 
 interface OrderConfirmation {
-    order: OrderResponse;
+    order: OrderConfirmationResponse;
     shipping: CheckoutFormData;
     items: CartItemSummary[];
     totals: {
@@ -246,12 +246,11 @@ export default function CheckoutPage() {
                             <div className="space-y-2">
                                 <h2 className="text-2xl font-semibold text-gray-900">Thank you for your order!</h2>
                                 <p className="text-sm text-gray-600">
-                                    {orderConfirmation.order.message ??
-                                        "We’ve received your order and sent a confirmation to your email."}
+                                    We’ve received your order and sent a confirmation to your email.
                                 </p>
-                                {(orderConfirmation.order.orderNumber || orderConfirmation.order.id) && (
+                                {orderConfirmation.order.orderId && (
                                     <p className="text-sm text-gray-700">
-                                        Order reference: <strong>{orderConfirmation.order.orderNumber ?? orderConfirmation.order.id}</strong>
+                                        Order reference: <strong>#{orderConfirmation.order.orderId}</strong>
                                     </p>
                                 )}
                             </div>

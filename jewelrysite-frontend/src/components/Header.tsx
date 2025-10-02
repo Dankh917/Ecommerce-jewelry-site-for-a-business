@@ -37,6 +37,7 @@ export default function Header() {
     const links = [
         { to: "/", label: "Home" },
         { to: "/catalog", label: "Catalog" },
+        ...(isAuthenticated ? [{ to: "/orders", label: "Orders" }] : []),
         ...(!isAuthenticated
             ? [
                   { to: "/login", label: "Login" },

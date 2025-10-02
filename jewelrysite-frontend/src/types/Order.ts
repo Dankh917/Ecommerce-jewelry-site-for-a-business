@@ -10,21 +10,47 @@ export interface CreateOrderPayload {
     notes?: string;
 }
 
-export interface OrderItemSummary {
+export interface OrderItem {
     jewelryItemId: number;
-    quantity: number;
-    unitPrice: number;
     name?: string | null;
-    lineTotal?: number;
+    unitPrice: number;
+    quantity: number;
+    lineTotal: number;
 }
 
-export interface OrderResponse {
-    id?: number;
-    orderNumber?: string;
-    totalAmount?: number;
-    createdAt?: string;
-    estimatedDeliveryDate?: string | null;
-    message?: string;
-    items?: OrderItemSummary[];
-    [key: string]: unknown;
+export interface OrderConfirmationResponse {
+    orderId: number;
+    createdAt: string;
+    status: string;
+    subtotal: number;
+    shipping: number;
+    taxVat: number;
+    discountTotal: number;
+    grandTotal: number;
+    currencyCode: string;
+    items: OrderItem[];
+}
+
+export interface OrderSummary {
+    orderId: number;
+    createdAt: string;
+    status: string;
+    grandTotal: number;
+    currencyCode: string;
+    itemCount: number;
+}
+
+export interface OrderDetail extends OrderSummary {
+    subtotal: number;
+    shipping: number;
+    taxVat: number;
+    discountTotal: number;
+    fullName: string;
+    phone: string;
+    country: string;
+    city: string;
+    street: string;
+    postalCode?: string | null;
+    notes?: string | null;
+    items: OrderItem[];
 }
