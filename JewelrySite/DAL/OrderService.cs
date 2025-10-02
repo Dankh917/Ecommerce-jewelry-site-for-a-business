@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using JewelrySite.BL;
 using JewelrySite.DTO;
 using Microsoft.EntityFrameworkCore;
@@ -123,6 +127,24 @@ namespace JewelrySite.DAL
                                 await transaction.RollbackAsync(cancellationToken);
                                 throw;
                         }
+                }
+
+                public Task<List<Order>> GetOrdersForUserAsync(int userId, CancellationToken cancellationToken = default)
+                {
+                        return _dbContext.Orders
+                                .AsNoTracking()
+                                .Where(o => o.UserId == userId)
+                                .Include(o => o.Items)
+                                .OrderByDescending(o => o.CreatedAt)
+                                .ToListAsync(cancellationToken);
+                }
+
+                public Task<Order?> GetOrderForUserAsync(int userId, int orderId, CancellationToken cancellationToken = default)
+                {
+                        return _dbContext.Orders
+                                .AsNoTracking()
+                                .Include(o => o.Items)
+                                .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
                 }
         }
 }

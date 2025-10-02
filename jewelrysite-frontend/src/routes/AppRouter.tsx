@@ -9,6 +9,7 @@ import ResetPasswordPage from "../pages/ResetPasswordPage";
 import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
 import ControlPanelPage from "../pages/ControlPanelPage";
+import OrdersPage from "../pages/OrdersPage";
 
 export default function AppRouter() {
     return (
@@ -23,6 +24,7 @@ export default function AppRouter() {
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/control-panel" element={<ControlPanelPage />} />
             </Routes>
         </BrowserRouter>
