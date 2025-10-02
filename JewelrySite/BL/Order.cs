@@ -35,7 +35,7 @@ namespace JewelrySite.BL
 		[Required, Precision(18, 2)] public decimal GrandTotal { get; set; }
 
 		// currency / payment (MVP inline)
-		[Required, MaxLength(3)] public string CurrencyCode { get; set; } = "ILS";
+                [Required, MaxLength(3)] public string CurrencyCode { get; set; } = "USD";
 		[MaxLength(32)] public string? PaymentProvider { get; set; } // e.g. "Manual", "Stripe"
 		[MaxLength(128)] public string? PaymentRef { get; set; }     // provider intent/id
 

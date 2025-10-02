@@ -678,6 +678,7 @@ export default function ControlPanelPage() {
                                                                         {item.price.toLocaleString(undefined, {
                                                                             style: "currency",
                                                                             currency: "USD",
+                                                                            currencyDisplay: "code",
                                                                         })}
                                                                     </p>
                                                                 </div>
@@ -811,6 +812,7 @@ export default function ControlPanelPage() {
                                                                 {item.price.toLocaleString(undefined, {
                                                                     style: "currency",
                                                                     currency: "USD",
+                                                                    currencyDisplay: "code",
                                                                 })}
                                                             </p>
                                                         </div>
