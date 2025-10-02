@@ -7,6 +7,7 @@ import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import CartPage from "../pages/CartPage";
+import CheckoutPage from "../pages/CheckoutPage";
 import ControlPanelPage from "../pages/ControlPanelPage";
 
 export default function AppRouter() {
@@ -21,6 +22,7 @@ export default function AppRouter() {
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/cart" element={<CartPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/control-panel" element={<ControlPanelPage />} />
             </Routes>
         </BrowserRouter>
