@@ -107,18 +107,35 @@ export default function CartPage() {
 
     const items = useMemo(() => cart?.items ?? [], [cart]);
 
-    const { subtotal, shipping, total } = useMemo(() => {
+    const { subtotal, shipping, total, highestShippingPrice } = useMemo(() => {
         const subtotalValue = items.reduce((acc, item) => acc + item.priceAtAddTime * item.quantity, 0);
-        const shippingValue = items.reduce((acc, item) => {
+        const highestShipping = items.reduce((max, item) => {
             const shippingPrice = item.jewelryItem?.shippingPrice ?? 0;
-            return acc + shippingPrice * item.quantity;
+            return Math.max(max, shippingPrice);
         }, 0);
         return {
             subtotal: subtotalValue,
-            shipping: shippingValue,
-            total: subtotalValue + shippingValue,
+            shipping: highestShipping,
+            total: subtotalValue + highestShipping,
+            highestShippingPrice: highestShipping,
         };
     }, [items]);
+
+    const itemsWithShipping = useMemo(() => {
+        let shippingChargeAssigned = false;
+        return items.map(item => {
+            const shippingPrice = item.jewelryItem?.shippingPrice ?? 0;
+            const applyShipping =
+                !shippingChargeAssigned && highestShippingPrice > 0 && shippingPrice === highestShippingPrice;
+            if (applyShipping) {
+                shippingChargeAssigned = true;
+            }
+            return {
+                item,
+                shippingCost: applyShipping ? highestShippingPrice : 0,
+            };
+        });
+    }, [items, highestShippingPrice]);
 
     const formatCurrency = useCallback((value: number) => {
         return value.toLocaleString(undefined, {
@@ -177,10 +194,9 @@ export default function CartPage() {
                     ) : (
                         <div className="grid gap-8 lg:grid-cols-[minmax(0,_2fr)_minmax(0,_1fr)]">
                             <ul className="space-y-5">
-                                {items.map(item => {
+                                {itemsWithShipping.map(({ item, shippingCost }) => {
                                     const jewelry = item.jewelryItem;
                                     const itemTotal = item.priceAtAddTime * item.quantity;
-                                    const shippingCost = (jewelry?.shippingPrice ?? 0) * item.quantity;
                                     return (
                                         <li
                                             key={item.id}

@@ -1,3 +1,4 @@
+using System;
 using JewelrySite.BL;
 using JewelrySite.DTO;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ namespace JewelrySite.DAL
                         try
                         {
                                 var cart = await _dbContext.Carts
+                                        .Include(c => c.User)
                                         .Include(c => c.Items)
                                         .ThenInclude(ci => ci.jewelryItem)
                                         .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
@@ -100,6 +102,19 @@ namespace JewelrySite.DAL
 
                                 await _dbContext.SaveChangesAsync(cancellationToken);
                                 await transaction.CommitAsync(cancellationToken);
+
+                                var recipientEmail = cart.User?.Email?.Trim();
+                                if (!string.IsNullOrWhiteSpace(recipientEmail))
+                                {
+                                        try
+                                        {
+                                                await EmailService.SendCheckoutNoticeAsync(recipientEmail, order);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                                Console.Error.WriteLine($"Failed to send checkout notice for order {order.Id}: {ex.Message}");
+                                        }
+                                }
 
                                 return order;
                         }

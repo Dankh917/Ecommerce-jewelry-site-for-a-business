@@ -56,9 +56,9 @@ export default function CheckoutPage() {
 
     const calculateTotals = useCallback((items: CartItemSummary[]) => {
         const subtotalValue = items.reduce((acc, item) => acc + item.priceAtAddTime * item.quantity, 0);
-        const shippingValue = items.reduce((acc, item) => {
+        const shippingValue = items.reduce((max, item) => {
             const shippingPrice = item.jewelryItem?.shippingPrice ?? 0;
-            return acc + shippingPrice * item.quantity;
+            return Math.max(max, shippingPrice);
         }, 0);
         return {
             subtotal: subtotalValue,
@@ -76,6 +76,43 @@ export default function CheckoutPage() {
             minimumFractionDigits: 2,
         });
     }, []);
+
+    const cartItemsWithShipping = useMemo(() => {
+        const cartItems = cart?.items ?? [];
+        let shippingChargeAssigned = false;
+        return cartItems.map(item => {
+            const shippingPrice = item.jewelryItem?.shippingPrice ?? 0;
+            const applyShipping =
+                !shippingChargeAssigned && totals.shipping > 0 && shippingPrice === totals.shipping;
+            if (applyShipping) {
+                shippingChargeAssigned = true;
+            }
+            return {
+                item,
+                shippingCost: applyShipping ? totals.shipping : 0,
+            };
+        });
+    }, [cart, totals.shipping]);
+
+    const confirmationItemsWithShipping = useMemo(() => {
+        if (!orderConfirmation) {
+            return [] as Array<{ item: CartItemSummary; shippingCost: number }>;
+        }
+        let shippingChargeAssigned = false;
+        return orderConfirmation.items.map(item => {
+            const shippingPrice = item.jewelryItem?.shippingPrice ?? 0;
+            const applyShipping =
+                !shippingChargeAssigned && orderConfirmation.totals.shipping > 0 &&
+                shippingPrice === orderConfirmation.totals.shipping;
+            if (applyShipping) {
+                shippingChargeAssigned = true;
+            }
+            return {
+                item,
+                shippingCost: applyShipping ? orderConfirmation.totals.shipping : 0,
+            };
+        });
+    }, [orderConfirmation]);
 
     useEffect(() => {
         const storedToken = typeof window !== "undefined" ? localStorage.getItem("jwtToken") : null;
@@ -190,9 +227,11 @@ export default function CheckoutPage() {
                         <h1 className="text-3xl font-extrabold tracking-wide" style={{ color: "#6B8C8E" }}>
                             Checkout
                         </h1>
-                        <p className="text-sm text-gray-600">
-                            Provide your contact and delivery details to finalize your order.
-                        </p>
+                        {!orderConfirmation && (
+                            <p className="text-sm text-gray-600">
+                                Provide your contact and delivery details to finalize your order.
+                            </p>
+                        )}
                     </div>
 
                     {loading ? (
@@ -242,10 +281,9 @@ export default function CheckoutPage() {
                                 <div className="space-y-4">
                                     <h3 className="text-lg font-semibold text-gray-900">Order summary</h3>
                                     <ul className="space-y-3 text-sm text-gray-700">
-                                        {orderConfirmation.items.map((item) => {
+                                        {confirmationItemsWithShipping.map(({ item, shippingCost }) => {
                                             const jewelry = item.jewelryItem;
                                             const lineTotal = item.priceAtAddTime * item.quantity;
-                                            const shippingCost = (jewelry?.shippingPrice ?? 0) * item.quantity;
                                             return (
                                                 <li key={`confirmation-${item.id}`} className="flex justify-between">
                                                     <div>
@@ -430,10 +468,9 @@ export default function CheckoutPage() {
                                     </Link>
                                 </div>
                                 <ul className="space-y-3">
-                                    {(cart?.items ?? []).map((item) => {
+                                    {cartItemsWithShipping.map(({ item, shippingCost }) => {
                                         const jewelry = item.jewelryItem;
                                         const lineTotal = item.priceAtAddTime * item.quantity;
-                                        const shippingCost = (jewelry?.shippingPrice ?? 0) * item.quantity;
                                         return (
                                             <li key={item.id} className="flex justify-between text-sm text-gray-700">
                                                 <div className="pr-4">
