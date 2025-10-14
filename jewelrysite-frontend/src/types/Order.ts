@@ -8,6 +8,11 @@ export interface CreateOrderPayload {
     street: string;
     postalCode: string;
     notes?: string;
+    paymentMethod?: string;
+    paymentReference?: string;
+    currencyCode?: string;
+    taxAmount?: number;
+    discountAmount?: number;
 }
 
 export interface OrderItem {
@@ -28,6 +33,12 @@ export interface OrderConfirmationResponse {
     discountTotal: number;
     grandTotal: number;
     currencyCode: string;
+    paymentProvider?: string | null;
+    paymentReference?: string | null;
+    payPalOrderId?: string | null;
+    payPalApprovalUrl?: string | null;
+    payPalStatus?: string | null;
+    payPalCaptureId?: string | null;
     items: OrderItem[];
 }
 
@@ -52,5 +63,10 @@ export interface OrderDetail extends OrderSummary {
     street: string;
     postalCode?: string | null;
     notes?: string | null;
+    paymentProvider?: string | null;
+    paymentReference?: string | null;
+    payPalOrderId?: string | null;
+    payPalCaptureId?: string | null;
+    payPalStatus?: string | null;
     items: OrderItem[];
 }

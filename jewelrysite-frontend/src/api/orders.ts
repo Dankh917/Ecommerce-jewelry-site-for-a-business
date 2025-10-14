@@ -11,6 +11,16 @@ export async function createOrder(payload: CreateOrderPayload): Promise<OrderCon
     return res.data;
 }
 
+export async function captureOrder(
+    orderId: number,
+    payPalOrderId: string
+): Promise<OrderConfirmationResponse> {
+    const res = await http.post<OrderConfirmationResponse>(`/api/Orders/${orderId}/capture`, {
+        payPalOrderId,
+    });
+    return res.data;
+}
+
 export async function getOrders(userId?: number): Promise<OrderSummary[]> {
     const res = await http.get<OrderSummary[]>("/api/Orders", {
         params: userId ? { userId } : undefined,
