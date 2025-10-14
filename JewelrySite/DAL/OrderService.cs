@@ -43,23 +43,7 @@ namespace JewelrySite.DAL
 
                         if (!_payPalOptions.IsConfigured())
                         {
-                                var manualOrder = await CreateManualOrderAsync(userId, request, draft, cancellationToken);
-
-                                return new CheckoutPreparationResult(
-                                        draft.Subtotal,
-                                        draft.Shipping,
-                                        draft.Tax,
-                                        draft.Discount,
-                                        draft.GrandTotal,
-                                        draft.CurrencyCode,
-                                        draft.Items,
-                                        null,
-                                        string.Empty,
-                                        null,
-                                        null,
-                                        requiresPayment: false,
-                                        manualOrder
-                                );
+                                throw new InvalidOperationException("PayPal checkout is not available.");
                         }
 
                         var payPalRequest = BuildPayPalRequest(draft);
@@ -199,79 +183,6 @@ namespace JewelrySite.DAL
                         await SendCheckoutEmailAsync(draft.Cart.User?.Email, order);
 
                         return new OrderCompletionResult(order, request.PayPalOrderId, captureResponse.Status, captureId);
-                }
-
-                private async Task<Order> CreateManualOrderAsync(int userId, CreateOrderRequestDto request, OrderDraftData draft, CancellationToken cancellationToken)
-                {
-                        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-                        var paymentProvider = string.IsNullOrWhiteSpace(request.PaymentMethod)
-                                ? "Manual"
-                                : request.PaymentMethod!.Trim();
-
-                        var paymentReference = string.IsNullOrWhiteSpace(request.PaymentReference)
-                                ? null
-                                : request.PaymentReference!.Trim();
-
-                        var fullName = request.FullName.Trim();
-                        var phone = request.Phone.Trim();
-                        var country = request.Country.Trim();
-                        var city = request.City.Trim();
-                        var street = request.Street.Trim();
-                        var postalCode = request.PostalCode?.Trim();
-                        var notes = string.IsNullOrWhiteSpace(request.PaymentNotes)
-                                ? null
-                                : request.PaymentNotes!.Trim();
-
-                        var order = new Order
-                        {
-                                UserId = userId,
-                                Status = OrderStatus.Pending,
-                                CreatedAt = DateTime.UtcNow,
-                                FullName = fullName,
-                                Phone = phone,
-                                Country = country,
-                                City = city,
-                                Street = street,
-                                PostalCode = postalCode,
-                                Notes = notes,
-                                PaymentProvider = paymentProvider,
-                                PaymentRef = paymentReference,
-                                CurrencyCode = draft.CurrencyCode,
-                                Subtotal = draft.Subtotal,
-                                Shipping = draft.Shipping,
-                                TaxVat = draft.Tax,
-                                DiscountTotal = draft.Discount,
-                                GrandTotal = draft.GrandTotal,
-                        };
-
-                        foreach (var item in draft.Items)
-                        {
-                                order.Items.Add(new OrderItem
-                                {
-                                        JewelryItemId = item.JewelryItemId,
-                                        NameSnapshot = item.Name,
-                                        UnitPrice = item.UnitPrice,
-                                        Quantity = item.Quantity,
-                                        LineTotal = item.LineTotal
-                                });
-                        }
-
-                        _dbContext.Orders.Add(order);
-
-                        var itemsToRemove = draft.Cart.Items.ToList();
-                        if (itemsToRemove.Count > 0)
-                        {
-                                _dbContext.CartItems.RemoveRange(itemsToRemove);
-                                draft.Cart.Items.Clear();
-                        }
-
-                        await _dbContext.SaveChangesAsync(cancellationToken);
-                        await transaction.CommitAsync(cancellationToken);
-
-                        await SendCheckoutEmailAsync(draft.Cart.User?.Email, order);
-
-                        return order;
                 }
 
                 private async Task SendCheckoutEmailAsync(string? recipientEmail, Order order)
