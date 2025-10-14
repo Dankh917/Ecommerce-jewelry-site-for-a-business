@@ -123,6 +123,15 @@ export default function CheckoutPage() {
             .join(" ");
     }, [payPalStatus]);
     const payPalPaymentCompleted = payPalStatus === "COMPLETED";
+    const payPalCurrencyCode = useMemo(() => {
+        if (orderConfirmation?.order.currencyCode) {
+            return orderConfirmation.order.currencyCode;
+        }
+        if (checkoutSession?.currencyCode) {
+            return checkoutSession.currencyCode;
+        }
+        return "USD";
+    }, [orderConfirmation, checkoutSession]);
     const shouldRenderPayPalButton = Boolean(
         payPalConfigured &&
         checkoutSession &&
@@ -134,8 +143,9 @@ export default function CheckoutPage() {
         shouldRenderPayPalButton
             ? {
                   clientId: payPalClientId,
-                  currency: orderConfirmation?.order.currencyCode,
+                  currency: payPalCurrencyCode,
                   intent: "CAPTURE",
+                  components: "buttons",
               }
             : null,
         shouldRenderPayPalButton
@@ -160,14 +170,17 @@ export default function CheckoutPage() {
         }
     }, [orderConfirmation?.order.payPalApprovalUrl, checkoutSession?.payPalApprovalUrl]);
 
-    const formatCurrency = useCallback((value: number) => {
-        return value.toLocaleString(undefined, {
-            style: "currency",
-            currency: "USD",
-            currencyDisplay: "code",
-            minimumFractionDigits: 2,
-        });
-    }, []);
+    const formatCurrency = useCallback(
+        (value: number, currencyCode: string = payPalCurrencyCode) => {
+            return value.toLocaleString(undefined, {
+                style: "currency",
+                currency: currencyCode,
+                currencyDisplay: "code",
+                minimumFractionDigits: 2,
+            });
+        },
+        [payPalCurrencyCode]
+    );
 
     const cartItemsWithShipping = useMemo(() => {
         const cartItems = cart?.items ?? [];
@@ -372,8 +385,17 @@ export default function CheckoutPage() {
 
         try {
             const buttons = window.paypal.Buttons({
-                style: { layout: "vertical", shape: "rect", color: "gold" },
+                style: {
+                    layout: "vertical",
+                    shape: "rect",
+                    color: "gold",
+                    label: "paypal",
+                    tagline: false,
+                },
                 createOrder: () => payPalOrderId,
+                onClick: () => {
+                    setPayPalError(null);
+                },
                 onApprove: async (data: PayPalApproveData) => {
                     const approvedOrderId = data.orderID ?? payPalOrderId;
                     if (!approvedOrderId) {
@@ -386,6 +408,11 @@ export default function CheckoutPage() {
                         return;
                     }
                     await finalizePayPalOrder(approvedOrderId);
+                },
+                onCancel: () => {
+                    setPayPalError(
+                        "You cancelled the PayPal checkout. Select the PayPal button to try again."
+                    );
                 },
                 onError: (err: unknown) => {
                     console.error("PayPal Buttons error", err);
@@ -409,12 +436,13 @@ export default function CheckoutPage() {
             );
         }
 
+        const cleanupContainer = container;
         return () => {
             if (payPalButtonsRef.current) {
                 closePayPalButtons();
             }
-            if (payPalContainerRef.current) {
-                payPalContainerRef.current.innerHTML = "";
+            if (cleanupContainer) {
+                cleanupContainer.innerHTML = "";
             }
         };
     }, [
@@ -1031,8 +1059,20 @@ export default function CheckoutPage() {
                                     className="inline-flex items-center justify-center px-5 py-3 rounded-lg text-white font-semibold shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                                     style={{ backgroundColor: "#6B8C8E" }}
                                 >
-                                    {submitting ? "Placing your order…" : "Place order"}
+                                    {payPalConfigured
+                                        ? submitting
+                                            ? "Preparing PayPal checkout…"
+                                            : "Review & pay with PayPal"
+                                        : submitting
+                                          ? "Placing your order…"
+                                          : "Place order"}
                                 </button>
+                                {payPalConfigured && (
+                                    <p className="text-xs text-gray-500">
+                                        You’ll securely complete your purchase through PayPal after reviewing the order
+                                        summary.
+                                    </p>
+                                )}
                                 {!hasItems && (
                                     <p className="text-xs text-red-600">
                                         Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
