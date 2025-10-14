@@ -26,7 +26,9 @@ export interface PayPalButtonsInstance {
 export interface PayPalButtonsConfig {
     style?: Record<string, unknown>;
     createOrder?: () => string | Promise<string>;
+    onClick?: () => void;
     onApprove?: (data: PayPalApproveData) => void | Promise<void>;
+    onCancel?: () => void;
     onError?: (err: unknown) => void;
 }
 

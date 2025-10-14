@@ -42,6 +42,7 @@ interface CheckoutSession {
         total: number;
     };
     cartId: number;
+    payPalClientId: string | null;
     payPalOrderId: string;
     payPalStatus: string | null;
     payPalApprovalUrl: string | null;
@@ -107,8 +108,15 @@ export default function CheckoutPage() {
 
     const totals = useMemo(() => calculateTotals(cart?.items ?? []), [cart, calculateTotals]);
 
-    const payPalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID ?? "").trim();
-    const payPalConfigured = payPalClientId.length > 0;
+    const envPayPalClientId = useMemo(() => (import.meta.env.VITE_PAYPAL_CLIENT_ID ?? "").trim(), []);
+    const payPalClientId = useMemo(() => {
+        const sessionClientId = checkoutSession?.payPalClientId?.trim();
+        if (sessionClientId) {
+            return sessionClientId;
+        }
+        return envPayPalClientId.length > 0 ? envPayPalClientId : null;
+    }, [checkoutSession?.payPalClientId, envPayPalClientId]);
+    const payPalConfigured = Boolean(payPalClientId && payPalClientId.length > 0);
     const rawPayPalStatus = orderConfirmation?.order.payPalStatus ?? checkoutSession?.payPalStatus ?? null;
     const payPalStatus = rawPayPalStatus ? rawPayPalStatus.toUpperCase() : null;
     const payPalOrderId = orderConfirmation?.order.payPalOrderId ?? checkoutSession?.payPalOrderId ?? null;
@@ -142,7 +150,7 @@ export default function CheckoutPage() {
     const { status: payPalScriptStatus, error: payPalScriptError } = usePayPalScript(
         shouldRenderPayPalButton
             ? {
-                  clientId: payPalClientId,
+                  clientId: payPalClientId!,
                   currency: payPalCurrencyCode,
                   intent: "CAPTURE",
                   components: "buttons",
@@ -541,6 +549,7 @@ export default function CheckoutPage() {
                     total: preparation.grandTotal,
                 },
                 cartId: cart.id,
+                payPalClientId: preparation.payPalClientId?.trim() ?? null,
                 payPalOrderId: preparation.payPalOrderId,
                 payPalStatus: preparation.payPalStatus ?? null,
                 payPalApprovalUrl: preparation.payPalApprovalUrl ?? null,

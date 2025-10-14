@@ -53,6 +53,7 @@ namespace JewelrySite.DAL
                                         draft.GrandTotal,
                                         draft.CurrencyCode,
                                         draft.Items,
+                                        null,
                                         string.Empty,
                                         null,
                                         null,
@@ -72,6 +73,9 @@ namespace JewelrySite.DAL
                                 draft.GrandTotal,
                                 draft.CurrencyCode,
                                 draft.Items,
+                                string.IsNullOrWhiteSpace(_payPalOptions.ClientId)
+                                        ? null
+                                        : _payPalOptions.ClientId.Trim(),
                                 payPalResponse.Id,
                                 payPalResponse.Status,
                                 payPalResponse.GetApprovalLink(),
@@ -418,6 +422,7 @@ namespace JewelrySite.DAL
                 decimal GrandTotal,
                 string CurrencyCode,
                 IReadOnlyList<OrderItemSnapshot> Items,
+                string? PayPalClientId,
                 string PayPalOrderId,
                 string? PayPalStatus,
                 string? PayPalApprovalLink,
