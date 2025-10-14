@@ -1,8 +1,11 @@
 using JewelrySite.DAL;
+using JewelrySite.HelperClasses;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Net.Http.Headers;
+using Microsoft.Extensions.Options;
 
 namespace JewelrySite
 {
@@ -31,6 +34,20 @@ namespace JewelrySite
 
             builder.Services.AddDbContext<JewerlyStoreDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionDB")));
 
+                        builder.Services.Configure<PayPalOptions>(builder.Configuration.GetSection("PayPal"));
+                        builder.Services.AddHttpClient("PayPal", (sp, client) =>
+                        {
+                                var options = sp.GetRequiredService<IOptions<PayPalOptions>>().Value;
+                                if (!string.IsNullOrWhiteSpace(options.BaseUrl) && Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri))
+                                {
+                                        client.BaseAddress = baseUri;
+                                }
+
+                                client.DefaultRequestHeaders.Accept.Clear();
+                                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        });
+
+                        builder.Services.AddSingleton<PayPalClient>();
                         builder.Services.AddScoped<CartService>();
                         builder.Services.AddScoped<OrderService>();
 			builder.Services.AddScoped<JewelryItemService>();

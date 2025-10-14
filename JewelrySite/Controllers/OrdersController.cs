@@ -1,6 +1,7 @@
 using JewelrySite.BL;
 using JewelrySite.DAL;
 using JewelrySite.DTO;
+using JewelrySite.HelperClasses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
@@ -88,18 +89,19 @@ namespace JewelrySite.Controllers
                                 return NotFound();
                         }
 
+                        var confirmation = BuildOrderConfirmation(order);
                         var response = new OrderDetailDto
                         {
-                                OrderId = order.Id,
-                                CreatedAt = order.CreatedAt,
-                                Status = order.Status,
-                                GrandTotal = order.GrandTotal,
-                                CurrencyCode = order.CurrencyCode,
+                                OrderId = confirmation.OrderId,
+                                CreatedAt = confirmation.CreatedAt,
+                                Status = confirmation.Status,
+                                GrandTotal = confirmation.GrandTotal,
+                                CurrencyCode = confirmation.CurrencyCode,
                                 ItemCount = order.Items.Sum(item => item.Quantity),
-                                Subtotal = order.Subtotal,
-                                Shipping = order.Shipping,
-                                TaxVat = order.TaxVat,
-                                DiscountTotal = order.DiscountTotal,
+                                Subtotal = confirmation.Subtotal,
+                                Shipping = confirmation.Shipping,
+                                TaxVat = confirmation.TaxVat,
+                                DiscountTotal = confirmation.DiscountTotal,
                                 FullName = order.FullName,
                                 Phone = order.Phone,
                                 Country = order.Country,
@@ -107,14 +109,12 @@ namespace JewelrySite.Controllers
                                 Street = order.Street,
                                 PostalCode = order.PostalCode,
                                 Notes = order.Notes,
-                                Items = order.Items.Select(oi => new OrderConfirmationItemDto
-                                {
-                                        JewelryItemId = oi.JewelryItemId,
-                                        Name = oi.NameSnapshot,
-                                        UnitPrice = oi.UnitPrice,
-                                        Quantity = oi.Quantity,
-                                        LineTotal = oi.LineTotal
-                                }).ToList()
+                                Items = confirmation.Items,
+                                PaymentProvider = confirmation.PaymentProvider,
+                                PaymentReference = confirmation.PaymentReference,
+                                PayPalOrderId = confirmation.PayPalOrderId,
+                                PayPalCaptureId = confirmation.PayPalCaptureId,
+                                PayPalStatus = confirmation.PayPalStatus
                         };
 
                         return Ok(response);
@@ -135,34 +135,93 @@ namespace JewelrySite.Controllers
 
                         try
                         {
-                                Order order = await _orderService.CreateOrderAsync(resolvedUserId, request);
-                                var response = new OrderConfirmationDto
-                                {
-                                        OrderId = order.Id,
-                                        CreatedAt = order.CreatedAt,
-                                        Status = order.Status,
-                                        Subtotal = order.Subtotal,
-                                        Shipping = order.Shipping,
-                                        TaxVat = order.TaxVat,
-                                        DiscountTotal = order.DiscountTotal,
-                                        GrandTotal = order.GrandTotal,
-                                        CurrencyCode = order.CurrencyCode,
-                                        Items = order.Items.Select(oi => new OrderConfirmationItemDto
-                                        {
-                                                JewelryItemId = oi.JewelryItemId,
-                                                Name = oi.NameSnapshot,
-                                                UnitPrice = oi.UnitPrice,
-                                                Quantity = oi.Quantity,
-                                                LineTotal = oi.LineTotal
-                                        }).ToList()
-                                };
+                                OrderCreationResult result = await _orderService.CreateOrderAsync(resolvedUserId, request);
+                                var response = BuildOrderConfirmation(result.Order, result.PayPalOrderId, result.PayPalStatus, result.ApprovalLink, null);
 
-                                return CreatedAtAction(nameof(CreateOrder), new { id = response.OrderId }, response);
+                                return CreatedAtAction(nameof(GetOrder), new { orderId = response.OrderId }, response);
                         }
                         catch (InvalidOperationException ex)
                         {
                                 return BadRequest(ex.Message);
                         }
                 }
+
+                [HttpPost("{orderId:int}/capture")]
+                public async Task<ActionResult<OrderConfirmationDto>> CaptureOrder(int orderId, [FromBody] CaptureOrderRequestDto request, int? userId)
+                {
+                        if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
+                        {
+                                return error!;
+                        }
+
+                        if (!ModelState.IsValid)
+                        {
+                                return ValidationProblem(ModelState);
+                        }
+
+                        try
+                        {
+                                var captureResult = await _orderService.CaptureOrderAsync(resolvedUserId, orderId, request.PayPalOrderId);
+                                if (captureResult is null)
+                                {
+                                        return NotFound();
+                                }
+
+                                var response = BuildOrderConfirmation(captureResult.Order, captureResult.PayPalOrderId, captureResult.PayPalStatus, null, captureResult.PayPalCaptureId);
+                                return Ok(response);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                                return BadRequest(ex.Message);
+                        }
+                }
+
+                private static OrderConfirmationDto BuildOrderConfirmation(Order order, string? payPalOrderIdOverride = null, string? payPalStatusOverride = null, string? approvalUrl = null, string? captureIdOverride = null)
+                {
+                        var (storedOrderId, storedCaptureId) = PaymentReferenceHelper.Parse(order.PaymentRef);
+                        var items = order.Items.Select(oi => new OrderConfirmationItemDto
+                        {
+                                JewelryItemId = oi.JewelryItemId,
+                                Name = oi.NameSnapshot,
+                                UnitPrice = oi.UnitPrice,
+                                Quantity = oi.Quantity,
+                                LineTotal = oi.LineTotal
+                        }).ToList();
+
+                        string? resolvedStatus = payPalStatusOverride;
+                        if (string.IsNullOrWhiteSpace(resolvedStatus))
+                        {
+                                if (!string.IsNullOrWhiteSpace(captureIdOverride ?? storedCaptureId) || order.Status == OrderStatus.Paid)
+                                {
+                                        resolvedStatus = "COMPLETED";
+                                }
+                                else if (!string.IsNullOrWhiteSpace(payPalOrderIdOverride ?? storedOrderId))
+                                {
+                                        resolvedStatus = "CREATED";
+                                }
+                        }
+
+                        return new OrderConfirmationDto
+                        {
+                                OrderId = order.Id,
+                                CreatedAt = order.CreatedAt,
+                                Status = order.Status,
+                                Subtotal = order.Subtotal,
+                                Shipping = order.Shipping,
+                                TaxVat = order.TaxVat,
+                                DiscountTotal = order.DiscountTotal,
+                                GrandTotal = order.GrandTotal,
+                                CurrencyCode = order.CurrencyCode,
+                                PaymentProvider = order.PaymentProvider,
+                                PaymentReference = order.PaymentRef,
+                                PayPalOrderId = payPalOrderIdOverride ?? storedOrderId,
+                                PayPalCaptureId = captureIdOverride ?? storedCaptureId,
+                                PayPalApprovalUrl = approvalUrl,
+                                PayPalStatus = resolvedStatus,
+                                Items = items
+                        };
+                }
+
         }
 }
+
