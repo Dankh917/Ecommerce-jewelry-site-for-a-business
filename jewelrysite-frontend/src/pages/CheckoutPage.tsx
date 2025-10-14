@@ -159,7 +159,6 @@ export default function CheckoutPage() {
             : null,
         canRenderPayPalButtons
     );
-    const showManualPayPalButton = !shouldRenderPayPalButtons || payPalScriptStatus === "error";
     const payPalApprovalUrl = useMemo(() => {
         const raw = orderConfirmation?.order.payPalApprovalUrl ?? checkoutSession?.payPalApprovalUrl ?? null;
         if (!raw) {
@@ -442,30 +441,6 @@ export default function CheckoutPage() {
             setPayPalPreparing(false);
         }
     }, [userId, cart, formData]);
-
-    const [payPalRedirecting, setPayPalRedirecting] = useState(false);
-
-    const handleManualPayPalCheckout = useCallback(async () => {
-        if (payPalPreparing || payPalCapturing || payPalRedirecting) {
-            return;
-        }
-
-        try {
-            setPayPalRedirecting(true);
-            const preparation = await preparePayPalCheckout();
-            if (preparation.approvalUrl) {
-                if (typeof window !== "undefined") {
-                    window.location.href = preparation.approvalUrl;
-                }
-            } else {
-                setPayPalError("PayPal did not return an approval link. Please try again.");
-            }
-        } catch (err) {
-            console.error("Failed to start manual PayPal checkout", err);
-        } finally {
-            setPayPalRedirecting(false);
-        }
-    }, [payPalPreparing, payPalCapturing, payPalRedirecting, preparePayPalCheckout]);
 
     useEffect(() => {
         if (!canRenderPayPalButtons) {
