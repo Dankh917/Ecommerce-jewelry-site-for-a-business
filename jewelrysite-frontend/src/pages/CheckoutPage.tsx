@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { isAxiosError } from "axios";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -6,9 +6,11 @@ import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import { resolveUserId } from "../utils/user";
 import { getCart } from "../api/cart";
-import { createOrder } from "../api/orders";
+import { captureOrder, createOrder } from "../api/orders";
 import type { CartItemSummary, CartResponse } from "../types/Cart";
 import type { OrderConfirmationResponse } from "../types/Order";
+import { usePayPalScript } from "../hooks/usePayPalScript";
+import type { PayPalButtonsInstance, PayPalApproveData } from "../hooks/usePayPalScript";
 
 interface CheckoutFormData {
     fullName: string;
@@ -53,6 +55,26 @@ export default function CheckoutPage() {
     const [formData, setFormData] = useState<CheckoutFormData>(initialFormState);
     const [submitting, setSubmitting] = useState(false);
     const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
+    const [payPalError, setPayPalError] = useState<string | null>(null);
+    const [payPalCapturing, setPayPalCapturing] = useState(false);
+    const payPalContainerRef = useRef<HTMLDivElement | null>(null);
+    const payPalButtonsRef = useRef<PayPalButtonsInstance | null>(null);
+
+    const closePayPalButtons = useCallback(() => {
+        if (!payPalButtonsRef.current) {
+            return;
+        }
+        try {
+            const result = payPalButtonsRef.current.close();
+            if (result && typeof (result as Promise<void>).then === "function") {
+                void (result as Promise<void>).catch(() => undefined);
+            }
+        } catch (err) {
+            console.error("Failed to close PayPal buttons", err);
+        } finally {
+            payPalButtonsRef.current = null;
+        }
+    }, []);
 
     const calculateTotals = useCallback((items: CartItemSummary[]) => {
         const subtotalValue = items.reduce((acc, item) => acc + item.priceAtAddTime * item.quantity, 0);
@@ -68,6 +90,54 @@ export default function CheckoutPage() {
     }, []);
 
     const totals = useMemo(() => calculateTotals(cart?.items ?? []), [cart, calculateTotals]);
+
+    const payPalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID ?? "").trim();
+    const payPalConfigured = payPalClientId.length > 0;
+    const payPalStatus = orderConfirmation?.order.payPalStatus
+        ? orderConfirmation.order.payPalStatus.toUpperCase()
+        : null;
+    const payPalOrderId = orderConfirmation?.order.payPalOrderId ?? null;
+    const payPalCaptureId = orderConfirmation?.order.payPalCaptureId ?? null;
+    const payPalStatusLabel = useMemo(() => {
+        if (!payPalStatus) {
+            return "Pending";
+        }
+        return payPalStatus
+            .split("_")
+            .map(part => part.charAt(0) + part.slice(1).toLowerCase())
+            .join(" ");
+    }, [payPalStatus]);
+    const payPalPaymentCompleted = payPalStatus === "COMPLETED";
+    const shouldRenderPayPalButton = Boolean(payPalConfigured && payPalOrderId && !payPalPaymentCompleted);
+    const { status: payPalScriptStatus, error: payPalScriptError } = usePayPalScript(
+        shouldRenderPayPalButton
+            ? {
+                  clientId: payPalClientId,
+                  currency: orderConfirmation?.order.currencyCode,
+                  intent: "CAPTURE",
+              }
+            : null,
+        shouldRenderPayPalButton
+    );
+    const payPalApprovalUrl = useMemo(() => {
+        const raw = orderConfirmation?.order.payPalApprovalUrl;
+        if (!raw) {
+            return null;
+        }
+        try {
+            const url = new URL(raw);
+            const host = url.hostname.toLowerCase();
+            if (!host.endsWith("paypal.com")) {
+                return null;
+            }
+            if (url.protocol !== "https:") {
+                return null;
+            }
+            return url.toString();
+        } catch {
+            return null;
+        }
+    }, [orderConfirmation?.order.payPalApprovalUrl]);
 
     const formatCurrency = useCallback((value: number) => {
         return value.toLocaleString(undefined, {
@@ -154,6 +224,139 @@ export default function CheckoutPage() {
         };
     }, [userId, navigate, location.pathname]);
 
+    useEffect(() => {
+        setPayPalError(null);
+        setPayPalCapturing(false);
+        if (payPalButtonsRef.current) {
+            closePayPalButtons();
+        }
+        if (payPalContainerRef.current) {
+            payPalContainerRef.current.innerHTML = "";
+        }
+    }, [payPalOrderId, closePayPalButtons]);
+
+    useEffect(() => {
+        if (payPalScriptError) {
+            setPayPalError(payPalScriptError);
+        }
+    }, [payPalScriptError]);
+
+    useEffect(() => {
+        if (!shouldRenderPayPalButton) {
+            if (payPalButtonsRef.current) {
+                closePayPalButtons();
+            }
+            if (payPalContainerRef.current) {
+                payPalContainerRef.current.innerHTML = "";
+            }
+            return;
+        }
+
+        if (payPalScriptStatus !== "ready") {
+            return;
+        }
+
+        const container = payPalContainerRef.current;
+        const orderId = orderConfirmation?.order.orderId;
+
+        if (!container || !payPalOrderId || !orderId) {
+            return;
+        }
+
+        if (!window.paypal?.Buttons) {
+            setPayPalError("PayPal SDK is unavailable. Please refresh the page and try again.");
+            return;
+        }
+
+        if (payPalButtonsRef.current) {
+            return;
+        }
+
+        try {
+            const buttons = window.paypal.Buttons({
+                style: { layout: "vertical", shape: "rect", color: "gold" },
+                createOrder: () => payPalOrderId,
+                onApprove: async (data: PayPalApproveData) => {
+                    if (payPalCapturing) {
+                        return;
+                    }
+                    const approvedOrderId = data.orderID ?? payPalOrderId;
+                    if (!approvedOrderId) {
+                        setPayPalError(
+                            "PayPal did not return an order id. Please use the approval link below."
+                        );
+                        return;
+                    }
+                    setPayPalCapturing(true);
+                    setPayPalError(null);
+                    try {
+                        const confirmation = await captureOrder(orderId, approvedOrderId);
+                        setOrderConfirmation(prev => {
+                            if (!prev) {
+                                return prev;
+                            }
+                            return {
+                                ...prev,
+                                order: confirmation,
+                                totals: {
+                                    subtotal: confirmation.subtotal,
+                                    shipping: confirmation.shipping,
+                                    total: confirmation.grandTotal,
+                                },
+                            };
+                        });
+                    } catch (err: unknown) {
+                        const message = isAxiosError(err)
+                            ? err.response?.data?.message ?? err.response?.data ?? err.message
+                            : err instanceof Error
+                              ? err.message
+                              : "Unable to confirm PayPal payment.";
+                        setPayPalError(
+                            typeof message === "string" ? message : "Unable to confirm PayPal payment."
+                        );
+                    } finally {
+                        setPayPalCapturing(false);
+                    }
+                },
+                onError: (err: unknown) => {
+                    console.error("PayPal Buttons error", err);
+                    setPayPalError(
+                        "We couldn't initialize PayPal checkout. Please try again or use the approval link below."
+                    );
+                },
+            });
+            payPalButtonsRef.current = buttons;
+            void buttons.render(container).catch((err: unknown) => {
+                console.error("Failed to render PayPal buttons", err);
+                setPayPalError(
+                    "We couldn't initialize PayPal checkout. Please try again or use the approval link below."
+                );
+                payPalButtonsRef.current = null;
+            });
+        } catch (err) {
+            console.error("Failed to set up PayPal buttons", err);
+            setPayPalError(
+                "We couldn't initialize PayPal checkout. Please try again or use the approval link below."
+            );
+        }
+
+        return () => {
+            if (payPalButtonsRef.current) {
+                closePayPalButtons();
+            }
+            if (payPalContainerRef.current) {
+                payPalContainerRef.current.innerHTML = "";
+            }
+        };
+    }, [
+        shouldRenderPayPalButton,
+        payPalScriptStatus,
+        payPalOrderId,
+        orderConfirmation?.order.orderId,
+        payPalCapturing,
+        closePayPalButtons,
+    ]);
+
     const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
         setFormData((prev) => ({
@@ -176,16 +379,27 @@ export default function CheckoutPage() {
         setError(null);
 
         try {
-            const payload = {
-                userId,
-                cartId: cart.id,
+            const trimmedData: CheckoutFormData = {
                 fullName: formData.fullName.trim(),
                 phoneNumber: formData.phoneNumber.trim(),
                 country: formData.country.trim(),
                 city: formData.city.trim(),
                 street: formData.street.trim(),
                 postalCode: formData.postalCode.trim(),
-                notes: formData.notes.trim() || undefined,
+                notes: formData.notes.trim(),
+            };
+
+            const payload = {
+                userId,
+                cartId: cart.id,
+                fullName: trimmedData.fullName,
+                phoneNumber: trimmedData.phoneNumber,
+                country: trimmedData.country,
+                city: trimmedData.city,
+                street: trimmedData.street,
+                postalCode: trimmedData.postalCode,
+                notes: trimmedData.notes || undefined,
+                paymentMethod: "PayPal",
             };
 
             const existingItems = cart.items.map((item) => ({ ...item }));
@@ -193,9 +407,13 @@ export default function CheckoutPage() {
 
             setOrderConfirmation({
                 order,
-                shipping: formData,
+                shipping: trimmedData,
                 items: existingItems,
-                totals: calculateTotals(existingItems),
+                totals: {
+                    subtotal: order.subtotal,
+                    shipping: order.shipping,
+                    total: order.grandTotal,
+                },
             });
             setFormData(initialFormState);
 
@@ -319,6 +537,71 @@ export default function CheckoutPage() {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div className="space-y-3 border-t border-gray-200 pt-6">
+                                <h3 className="text-lg font-semibold text-gray-900">Payment</h3>
+                                <div className="space-y-1 text-sm text-gray-700">
+                                    <p>
+                                        <strong>Method:</strong> {orderConfirmation.order.paymentProvider ?? "PayPal"}
+                                    </p>
+                                    <p>
+                                        <strong>Status:</strong> {payPalStatusLabel}
+                                    </p>
+                                    {payPalOrderId && (
+                                        <p>
+                                            <strong>PayPal order:</strong> {payPalOrderId}
+                                        </p>
+                                    )}
+                                    {payPalCaptureId && (
+                                        <p>
+                                            <strong>Capture reference:</strong> {payPalCaptureId}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {payPalPaymentCompleted ? (
+                                    <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 text-sm">
+                                        Your payment has been completed successfully. A receipt has been sent to your PayPal account.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {payPalCapturing && (
+                                            <p className="text-sm text-gray-600">Confirming your PayPal payment…</p>
+                                        )}
+                                        {payPalError && (
+                                            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                                                {payPalError}
+                                            </div>
+                                        )}
+                                        {shouldRenderPayPalButton && (
+                                            <div className="space-y-2">
+                                                {payPalScriptStatus === "loading" && (
+                                                    <p className="text-sm text-gray-600">Loading PayPal checkout…</p>
+                                                )}
+                                                <div ref={payPalContainerRef} className="min-h-[45px]" />
+                                            </div>
+                                        )}
+                                        {payPalApprovalUrl && (
+                                            <a
+                                                href={payPalApprovalUrl}
+                                                target="_blank"
+                                                rel="noreferrer noopener"
+                                                className={`inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
+                                                    payPalCapturing ? "opacity-60 pointer-events-none" : ""
+                                                }`}
+                                                style={{ backgroundColor: "#003087" }}
+                                            >
+                                                Continue to PayPal
+                                            </a>
+                                        )}
+                                        {!payPalConfigured && payPalApprovalUrl && (
+                                            <p className="text-xs text-gray-600">
+                                                PayPal buttons require a client id. Use the secure link above to complete your checkout.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-wrap gap-3">
