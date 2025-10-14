@@ -1,23 +1,20 @@
 import { http } from "./http";
 import type {
+    CheckoutPreparationResponse,
+    CompleteOrderPayload,
     CreateOrderPayload,
     OrderConfirmationResponse,
     OrderDetail,
     OrderSummary,
 } from "../types/Order";
 
-export async function createOrder(payload: CreateOrderPayload): Promise<OrderConfirmationResponse> {
-    const res = await http.post<OrderConfirmationResponse>("/api/Orders", payload);
+export async function createOrder(payload: CreateOrderPayload): Promise<CheckoutPreparationResponse> {
+    const res = await http.post<CheckoutPreparationResponse>("/api/Orders", payload);
     return res.data;
 }
 
-export async function captureOrder(
-    orderId: number,
-    payPalOrderId: string
-): Promise<OrderConfirmationResponse> {
-    const res = await http.post<OrderConfirmationResponse>(`/api/Orders/${orderId}/capture`, {
-        payPalOrderId,
-    });
+export async function completeOrder(payload: CompleteOrderPayload): Promise<OrderConfirmationResponse> {
+    const res = await http.post<OrderConfirmationResponse>("/api/Orders/complete", payload);
     return res.data;
 }
 
