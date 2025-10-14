@@ -66,6 +66,12 @@ namespace JewelrySite.DTO
                 public decimal DiscountTotal { get; set; }
                 public decimal GrandTotal { get; set; }
                 public string CurrencyCode { get; set; } = "USD";
+                public string? PaymentProvider { get; set; }
+                public string? PaymentReference { get; set; }
+                public string? PayPalOrderId { get; set; }
+                public string? PayPalApprovalUrl { get; set; }
+                public string? PayPalStatus { get; set; }
+                public string? PayPalCaptureId { get; set; }
                 public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
         }
 
@@ -92,6 +98,17 @@ namespace JewelrySite.DTO
                 public string Street { get; set; } = string.Empty;
                 public string? PostalCode { get; set; }
                 public string? Notes { get; set; }
+                public string? PaymentProvider { get; set; }
+                public string? PaymentReference { get; set; }
+                public string? PayPalOrderId { get; set; }
+                public string? PayPalCaptureId { get; set; }
+                public string? PayPalStatus { get; set; }
                 public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
+        }
+
+        public class CaptureOrderRequestDto
+        {
+                [Required, MaxLength(128)]
+                public string PayPalOrderId { get; set; } = string.Empty;
         }
 }
