@@ -655,12 +655,31 @@ export default function CheckoutPage() {
                                                 href={payPalApprovalUrl}
                                                 target="_blank"
                                                 rel="noreferrer noopener"
-                                                className={`inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
-                                                    payPalCapturing ? "opacity-60 pointer-events-none" : ""
+                                                aria-label="Continue to PayPal to approve this order"
+                                                className={`group inline-flex items-center justify-center rounded-full border border-[#003087] bg-[#FFC439] px-5 py-2.5 font-semibold text-[#111B1F] shadow-md transition-transform duration-150 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#003087] ${
+                                                    payPalCapturing ? "opacity-60 pointer-events-none" : "hover:translate-y-[1px]"
                                                 }`}
-                                                style={{ backgroundColor: "#003087" }}
                                             >
-                                                Continue to PayPal
+                                                <span className="flex items-center gap-2">
+                                                    <svg
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6 drop-shadow-sm"
+                                                        viewBox="0 0 32 32"
+                                                    >
+                                                        <path
+                                                            fill="#003087"
+                                                            d="M13.7 3.5h7.1c5 0 8.5 2.9 7.6 8.1-.8 4.9-4.4 7.5-9.1 7.5h-3.9l-1.7 10.2h-5.4L13.7 3.5z"
+                                                        />
+                                                        <path
+                                                            fill="#009cde"
+                                                            d="M22.4 7.3c2.3 0 3.7 1.2 3.4 3.5-.3 2.2-2 3.5-4.2 3.5h-3.4l1.5-7h2.7z"
+                                                        />
+                                                    </svg>
+                                                    <span className="flex items-baseline gap-1 text-lg leading-none">
+                                                        <span className="font-bold text-[#003087]">Pay</span>
+                                                        <span className="font-bold text-[#009cde]">Pal</span>
+                                                    </span>
+                                                </span>
                                             </a>
                                         )}
                                         {!payPalConfigured && payPalApprovalUrl && (
@@ -798,19 +817,38 @@ export default function CheckoutPage() {
                                             <div ref={payPalContainerRef} className="min-h-[45px]" />
                                         </div>
                                     )}
-                                    {payPalApprovalUrl && (
-                                        <a
-                                            href={payPalApprovalUrl}
-                                            target="_blank"
-                                            rel="noreferrer noopener"
-                                            className={`inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
-                                                payPalCapturing ? "opacity-60 pointer-events-none" : ""
-                                            }`}
-                                            style={{ backgroundColor: "#003087" }}
-                                        >
-                                            Continue to PayPal
-                                        </a>
-                                    )}
+                                        {payPalApprovalUrl && (
+                                            <a
+                                                href={payPalApprovalUrl}
+                                                target="_blank"
+                                                rel="noreferrer noopener"
+                                                aria-label="Continue to PayPal to approve this order"
+                                                className={`group inline-flex items-center justify-center rounded-full border border-[#003087] bg-[#FFC439] px-5 py-2.5 font-semibold text-[#111B1F] shadow-md transition-transform duration-150 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#003087] ${
+                                                    payPalCapturing ? "opacity-60 pointer-events-none" : "hover:translate-y-[1px]"
+                                                }`}
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <svg
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6 drop-shadow-sm"
+                                                        viewBox="0 0 32 32"
+                                                    >
+                                                        <path
+                                                            fill="#003087"
+                                                            d="M13.7 3.5h7.1c5 0 8.5 2.9 7.6 8.1-.8 4.9-4.4 7.5-9.1 7.5h-3.9l-1.7 10.2h-5.4L13.7 3.5z"
+                                                        />
+                                                        <path
+                                                            fill="#009cde"
+                                                            d="M22.4 7.3c2.3 0 3.7 1.2 3.4 3.5-.3 2.2-2 3.5-4.2 3.5h-3.4l1.5-7h2.7z"
+                                                        />
+                                                    </svg>
+                                                    <span className="flex items-baseline gap-1 text-lg leading-none">
+                                                        <span className="font-bold text-[#003087]">Pay</span>
+                                                        <span className="font-bold text-[#009cde]">Pal</span>
+                                                    </span>
+                                                </span>
+                                            </a>
+                                        )}
                                     {payPalOrderId && (
                                         <button
                                             type="button"
