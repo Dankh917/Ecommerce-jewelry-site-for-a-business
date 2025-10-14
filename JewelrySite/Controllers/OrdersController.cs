@@ -144,6 +144,7 @@ namespace JewelrySite.Controllers
                                         DiscountTotal = result.Discount,
                                         GrandTotal = result.GrandTotal,
                                         CurrencyCode = result.CurrencyCode,
+                                        PayPalClientId = result.PayPalClientId,
                                         PayPalOrderId = result.PayPalOrderId,
                                         PayPalApprovalUrl = result.PayPalApprovalLink,
                                         PayPalStatus = result.PayPalStatus,

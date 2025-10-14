@@ -22,6 +22,7 @@ export interface CheckoutPreparationResponse {
     discountTotal: number;
     grandTotal: number;
     currencyCode: string;
+    payPalClientId?: string | null;
     payPalOrderId: string;
     payPalApprovalUrl?: string | null;
     payPalStatus?: string | null;

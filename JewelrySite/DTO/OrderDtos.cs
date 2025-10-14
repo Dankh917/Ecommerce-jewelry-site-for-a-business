@@ -54,6 +54,7 @@ namespace JewelrySite.DTO
                 public decimal DiscountTotal { get; set; }
                 public decimal GrandTotal { get; set; }
                 public string CurrencyCode { get; set; } = "USD";
+                public string? PayPalClientId { get; set; }
                 public string PayPalOrderId { get; set; } = string.Empty;
                 public string? PayPalApprovalUrl { get; set; }
                 public string? PayPalStatus { get; set; }
