@@ -46,6 +46,20 @@ namespace JewelrySite.DTO
                 public decimal? DiscountAmount { get; set; }
         }
 
+        public class CheckoutPreparationDto
+        {
+                public decimal Subtotal { get; set; }
+                public decimal Shipping { get; set; }
+                public decimal TaxVat { get; set; }
+                public decimal DiscountTotal { get; set; }
+                public decimal GrandTotal { get; set; }
+                public string CurrencyCode { get; set; } = "USD";
+                public string PayPalOrderId { get; set; } = string.Empty;
+                public string? PayPalApprovalUrl { get; set; }
+                public string? PayPalStatus { get; set; }
+                public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
+        }
+
         public class OrderConfirmationItemDto
         {
                 public int JewelryItemId { get; set; }
@@ -106,7 +120,7 @@ namespace JewelrySite.DTO
                 public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
         }
 
-        public class CaptureOrderRequestDto
+        public class CompleteOrderRequestDto : CreateOrderRequestDto
         {
                 [Required, MaxLength(128)]
                 public string PayPalOrderId { get; set; } = string.Empty;

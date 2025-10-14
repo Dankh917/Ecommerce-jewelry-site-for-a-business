@@ -121,7 +121,7 @@ namespace JewelrySite.Controllers
                 }
 
                 [HttpPost]
-                public async Task<ActionResult<OrderConfirmationDto>> CreateOrder([FromBody] CreateOrderRequestDto request, int? userId)
+                public async Task<ActionResult<CheckoutPreparationDto>> CreateOrder([FromBody] CreateOrderRequestDto request, int? userId)
                 {
                         if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
                         {
@@ -135,10 +135,29 @@ namespace JewelrySite.Controllers
 
                         try
                         {
-                                OrderCreationResult result = await _orderService.CreateOrderAsync(resolvedUserId, request);
-                                var response = BuildOrderConfirmation(result.Order, result.PayPalOrderId, result.PayPalStatus, result.ApprovalLink, null);
+                                CheckoutPreparationResult result = await _orderService.PrepareCheckoutAsync(resolvedUserId, request);
+                                var response = new CheckoutPreparationDto
+                                {
+                                        Subtotal = result.Subtotal,
+                                        Shipping = result.Shipping,
+                                        TaxVat = result.Tax,
+                                        DiscountTotal = result.Discount,
+                                        GrandTotal = result.GrandTotal,
+                                        CurrencyCode = result.CurrencyCode,
+                                        PayPalOrderId = result.PayPalOrderId,
+                                        PayPalApprovalUrl = result.PayPalApprovalLink,
+                                        PayPalStatus = result.PayPalStatus,
+                                        Items = result.Items.Select(item => new OrderConfirmationItemDto
+                                        {
+                                                JewelryItemId = item.JewelryItemId,
+                                                Name = item.Name,
+                                                UnitPrice = item.UnitPrice,
+                                                Quantity = item.Quantity,
+                                                LineTotal = item.LineTotal
+                                        })
+                                };
 
-                                return CreatedAtAction(nameof(GetOrder), new { orderId = response.OrderId }, response);
+                                return Ok(response);
                         }
                         catch (InvalidOperationException ex)
                         {
@@ -146,8 +165,8 @@ namespace JewelrySite.Controllers
                         }
                 }
 
-                [HttpPost("{orderId:int}/capture")]
-                public async Task<ActionResult<OrderConfirmationDto>> CaptureOrder(int orderId, [FromBody] CaptureOrderRequestDto request, int? userId)
+                [HttpPost("complete")]
+                public async Task<ActionResult<OrderConfirmationDto>> CompleteOrder([FromBody] CompleteOrderRequestDto request, int? userId)
                 {
                         if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
                         {
@@ -161,13 +180,8 @@ namespace JewelrySite.Controllers
 
                         try
                         {
-                                var captureResult = await _orderService.CaptureOrderAsync(resolvedUserId, orderId, request.PayPalOrderId);
-                                if (captureResult is null)
-                                {
-                                        return NotFound();
-                                }
-
-                                var response = BuildOrderConfirmation(captureResult.Order, captureResult.PayPalOrderId, captureResult.PayPalStatus, null, captureResult.PayPalCaptureId);
+                                var completionResult = await _orderService.CompleteOrderAsync(resolvedUserId, request);
+                                var response = BuildOrderConfirmation(completionResult.Order, completionResult.PayPalOrderId, completionResult.PayPalStatus, null, completionResult.PayPalCaptureId);
                                 return Ok(response);
                         }
                         catch (InvalidOperationException ex)

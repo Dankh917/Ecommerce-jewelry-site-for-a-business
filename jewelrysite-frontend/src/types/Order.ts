@@ -15,6 +15,23 @@ export interface CreateOrderPayload {
     discountAmount?: number;
 }
 
+export interface CheckoutPreparationResponse {
+    subtotal: number;
+    shipping: number;
+    taxVat: number;
+    discountTotal: number;
+    grandTotal: number;
+    currencyCode: string;
+    payPalOrderId: string;
+    payPalApprovalUrl?: string | null;
+    payPalStatus?: string | null;
+    items: OrderItem[];
+}
+
+export interface CompleteOrderPayload extends CreateOrderPayload {
+    payPalOrderId: string;
+}
+
 export interface OrderItem {
     jewelryItemId: number;
     name?: string | null;
