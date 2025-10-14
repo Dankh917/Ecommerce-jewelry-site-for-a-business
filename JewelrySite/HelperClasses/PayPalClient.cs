@@ -186,6 +186,12 @@ namespace JewelrySite.HelperClasses
 
                 [JsonPropertyName("user_action")]
                 public string UserAction { get; set; } = "PAY_NOW";
+
+                [JsonPropertyName("return_url")]
+                public string ReturnUrl { get; set; } = string.Empty;
+
+                [JsonPropertyName("cancel_url")]
+                public string CancelUrl { get; set; } = string.Empty;
         }
 
         public sealed class PayPalPurchaseUnit
