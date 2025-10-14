@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent } from "react";
 import { isAxiosError } from "axios";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
@@ -68,11 +68,11 @@ export default function CheckoutPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<CheckoutFormData>(initialFormState);
-    const [submitting, setSubmitting] = useState(false);
     const [checkoutSession, setCheckoutSession] = useState<CheckoutSession | null>(null);
     const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
     const [payPalError, setPayPalError] = useState<string | null>(null);
     const [payPalCapturing, setPayPalCapturing] = useState(false);
+    const [payPalPreparing, setPayPalPreparing] = useState(false);
     const payPalContainerRef = useRef<HTMLDivElement | null>(null);
     const payPalButtonsRef = useRef<PayPalButtonsInstance | null>(null);
 
@@ -123,22 +123,41 @@ export default function CheckoutPage() {
             .join(" ");
     }, [payPalStatus]);
     const payPalPaymentCompleted = payPalStatus === "COMPLETED";
-    const shouldRenderPayPalButton = Boolean(
+    const hasItems = (cart?.items.length ?? 0) > 0;
+    const isFormComplete = useMemo(() => {
+        const requiredFields = [
+            formData.fullName,
+            formData.phoneNumber,
+            formData.country,
+            formData.city,
+            formData.street,
+            formData.postalCode,
+        ];
+        return requiredFields.every(field => field.trim().length > 0);
+    }, [
+        formData.fullName,
+        formData.phoneNumber,
+        formData.country,
+        formData.city,
+        formData.street,
+        formData.postalCode,
+    ]);
+    const canRenderPayPalButtons = Boolean(
         payPalConfigured &&
-        checkoutSession &&
-        payPalOrderId &&
-        !payPalPaymentCompleted &&
-        !orderConfirmation
+        !orderConfirmation &&
+        hasItems &&
+        isFormComplete
     );
     const { status: payPalScriptStatus, error: payPalScriptError } = usePayPalScript(
-        shouldRenderPayPalButton
+        canRenderPayPalButtons
             ? {
                   clientId: payPalClientId,
-                  currency: orderConfirmation?.order.currencyCode,
+                  currency:
+                      checkoutSession?.currencyCode ?? orderConfirmation?.order.currencyCode ?? "USD",
                   intent: "CAPTURE",
               }
             : null,
-        shouldRenderPayPalButton
+        canRenderPayPalButtons
     );
     const payPalApprovalUrl = useMemo(() => {
         const raw = orderConfirmation?.order.payPalApprovalUrl ?? checkoutSession?.payPalApprovalUrl ?? null;
@@ -194,7 +213,8 @@ export default function CheckoutPage() {
         return checkoutSession.items.map(item => {
             const shippingPrice = item.jewelryItem?.shippingPrice ?? 0;
             const applyShipping =
-                !shippingChargeAssigned && checkoutSession.totals.shipping > 0 && shippingPrice === checkoutSession.totals.shipping;
+                !shippingChargeAssigned && checkoutSession.totals.shipping > 0 &&
+                shippingPrice === checkoutSession.totals.shipping;
             if (applyShipping) {
                 shippingChargeAssigned = true;
             }
@@ -265,17 +285,6 @@ export default function CheckoutPage() {
     }, [userId, navigate, location.pathname]);
 
     useEffect(() => {
-        setPayPalError(null);
-        setPayPalCapturing(false);
-        if (payPalButtonsRef.current) {
-            closePayPalButtons();
-        }
-        if (payPalContainerRef.current) {
-            payPalContainerRef.current.innerHTML = "";
-        }
-    }, [payPalOrderId, closePayPalButtons]);
-
-    useEffect(() => {
         if (payPalScriptError) {
             setPayPalError(payPalScriptError);
         }
@@ -341,7 +350,7 @@ export default function CheckoutPage() {
     );
 
     useEffect(() => {
-        if (!shouldRenderPayPalButton) {
+        if (!canRenderPayPalButtons) {
             if (payPalButtonsRef.current) {
                 closePayPalButtons();
             }
@@ -357,7 +366,7 @@ export default function CheckoutPage() {
 
         const container = payPalContainerRef.current;
 
-        if (!container || !payPalOrderId || !checkoutSession) {
+        if (!container) {
             return;
         }
 
@@ -367,18 +376,109 @@ export default function CheckoutPage() {
         }
 
         if (payPalButtonsRef.current) {
-            return;
+            closePayPalButtons();
+            container.innerHTML = "";
         }
+
+        setPayPalError(null);
 
         try {
             const buttons = window.paypal.Buttons({
                 style: { layout: "vertical", shape: "rect", color: "gold" },
-                createOrder: () => payPalOrderId,
+                createOrder: async () => {
+                    if (!userId || !cart) {
+                        setPayPalError("You need an active cart to start PayPal checkout.");
+                        throw new Error("Missing cart or user information");
+                    }
+
+                    const trimmedData: CheckoutFormData = {
+                        fullName: formData.fullName.trim(),
+                        phoneNumber: formData.phoneNumber.trim(),
+                        country: formData.country.trim(),
+                        city: formData.city.trim(),
+                        street: formData.street.trim(),
+                        postalCode: formData.postalCode.trim(),
+                        notes: formData.notes.trim(),
+                    };
+
+                    const requiredValues = [
+                        trimmedData.fullName,
+                        trimmedData.phoneNumber,
+                        trimmedData.country,
+                        trimmedData.city,
+                        trimmedData.street,
+                        trimmedData.postalCode,
+                    ];
+
+                    if (requiredValues.some(value => value.length === 0)) {
+                        setPayPalError("Please complete all required shipping fields before paying with PayPal.");
+                        throw new Error("Shipping details incomplete");
+                    }
+
+                    if (cart.items.length === 0) {
+                        setPayPalError("Your cart is empty. Please add items before checking out.");
+                        throw new Error("Cart is empty");
+                    }
+
+                    setPayPalPreparing(true);
+                    setPayPalError(null);
+
+                    try {
+                        const payload = {
+                            userId,
+                            cartId: cart.id,
+                            fullName: trimmedData.fullName,
+                            phoneNumber: trimmedData.phoneNumber,
+                            country: trimmedData.country,
+                            city: trimmedData.city,
+                            street: trimmedData.street,
+                            postalCode: trimmedData.postalCode,
+                            notes: trimmedData.notes || undefined,
+                            paymentMethod: "PayPal",
+                        };
+
+                        const existingItems = cart.items.map(item => ({ ...item }));
+                        const preparation = await createOrder(payload);
+
+                        if (!preparation.payPalOrderId) {
+                            setPayPalError("PayPal did not return an order id. Please try again.");
+                            throw new Error("Missing PayPal order id");
+                        }
+
+                        setCheckoutSession({
+                            shipping: trimmedData,
+                            items: existingItems,
+                            totals: {
+                                subtotal: preparation.subtotal,
+                                shipping: preparation.shipping,
+                                total: preparation.grandTotal,
+                            },
+                            cartId: cart.id,
+                            payPalOrderId: preparation.payPalOrderId,
+                            payPalStatus: preparation.payPalStatus ?? null,
+                            payPalApprovalUrl: preparation.payPalApprovalUrl ?? null,
+                            currencyCode: preparation.currencyCode,
+                        });
+                        setFormData(trimmedData);
+
+                        return preparation.payPalOrderId;
+                    } catch (err: unknown) {
+                        const message = isAxiosError(err)
+                            ? err.response?.data?.message ?? err.response?.data ?? err.message
+                            : err instanceof Error
+                              ? err.message
+                              : "Unable to start PayPal checkout.";
+                        setPayPalError(typeof message === "string" ? message : "Unable to start PayPal checkout.");
+                        throw err instanceof Error ? err : new Error("Unable to start PayPal checkout");
+                    } finally {
+                        setPayPalPreparing(false);
+                    }
+                },
                 onApprove: async (data: PayPalApproveData) => {
-                    const approvedOrderId = data.orderID ?? payPalOrderId;
+                    const approvedOrderId = data.orderID ?? checkoutSession?.payPalOrderId ?? null;
                     if (!approvedOrderId) {
                         setPayPalError(
-                            "PayPal did not return an order id. Please use the approval link below."
+                            "PayPal did not return an order id. Please try again or use the approval link below."
                         );
                         return;
                     }
@@ -418,11 +518,13 @@ export default function CheckoutPage() {
             }
         };
     }, [
-        shouldRenderPayPalButton,
+        canRenderPayPalButtons,
         payPalScriptStatus,
-        payPalOrderId,
-        checkoutSession,
+        userId,
+        cart,
+        formData,
         payPalCapturing,
+        checkoutSession?.payPalOrderId,
         closePayPalButtons,
         finalizePayPalOrder,
     ]);
@@ -433,77 +535,19 @@ export default function CheckoutPage() {
             ...prev,
             [name]: value,
         }));
+        setPayPalError(null);
+        setCheckoutSession((prev) => {
+            if (!prev) {
+                return prev;
+            }
+            return null;
+        });
     };
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!userId || !cart) {
-            return;
-        }
-        if (cart.items.length === 0) {
-            setError("Your cart is empty. Please add items before checking out.");
-            return;
-        }
-
-        setSubmitting(true);
-        setError(null);
-
-        try {
-            const trimmedData: CheckoutFormData = {
-                fullName: formData.fullName.trim(),
-                phoneNumber: formData.phoneNumber.trim(),
-                country: formData.country.trim(),
-                city: formData.city.trim(),
-                street: formData.street.trim(),
-                postalCode: formData.postalCode.trim(),
-                notes: formData.notes.trim(),
-            };
-
-            const payload = {
-                userId,
-                cartId: cart.id,
-                fullName: trimmedData.fullName,
-                phoneNumber: trimmedData.phoneNumber,
-                country: trimmedData.country,
-                city: trimmedData.city,
-                street: trimmedData.street,
-                postalCode: trimmedData.postalCode,
-                notes: trimmedData.notes || undefined,
-                paymentMethod: "PayPal",
-            };
-
-            const existingItems = cart.items.map((item) => ({ ...item }));
-            const preparation = await createOrder(payload);
-
-            setCheckoutSession({
-                shipping: trimmedData,
-                items: existingItems,
-                totals: {
-                    subtotal: preparation.subtotal,
-                    shipping: preparation.shipping,
-                    total: preparation.grandTotal,
-                },
-                cartId: cart.id,
-                payPalOrderId: preparation.payPalOrderId,
-                payPalStatus: preparation.payPalStatus ?? null,
-                payPalApprovalUrl: preparation.payPalApprovalUrl ?? null,
-                currencyCode: preparation.currencyCode,
-            });
-            setOrderConfirmation(null);
-            setFormData(trimmedData);
-        } catch (err: unknown) {
-            const message = isAxiosError(err)
-                ? err.response?.data?.message ?? err.response?.data ?? err.message
-                : err instanceof Error
-                  ? err.message
-                  : "Unable to complete order.";
-            setError(typeof message === "string" ? message : "Unable to complete order.");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const hasItems = (cart?.items.length ?? 0) > 0;
+    const summaryItems = checkoutSession && sessionItemsWithShipping.length > 0
+        ? sessionItemsWithShipping
+        : cartItemsWithShipping;
+    const summaryTotals = checkoutSession?.totals ?? totals;
 
     return (
         <div className="min-h-screen bg-[#fbfbfa] flex flex-col">
@@ -514,7 +558,7 @@ export default function CheckoutPage() {
                         <h1 className="text-3xl font-extrabold tracking-wide" style={{ color: "#6B8C8E" }}>
                             Checkout
                         </h1>
-                        {!orderConfirmation && !checkoutSession && (
+                        {!orderConfirmation && (
                             <p className="text-sm text-gray-600">
                                 Provide your contact and delivery details to finalize your order.
                             </p>
@@ -642,15 +686,7 @@ export default function CheckoutPage() {
                                                 {payPalError}
                                             </div>
                                         )}
-                                        {shouldRenderPayPalButton && (
-                                            <div className="space-y-2">
-                                                {payPalScriptStatus === "loading" && (
-                                                    <p className="text-sm text-gray-600">Loading PayPal checkout…</p>
-                                                )}
-                                                <div ref={payPalContainerRef} className="min-h-[45px]" />
-                                            </div>
-                                        )}
-                                        {payPalApprovalUrl && (
+                                        {payPalApprovalUrl ? (
                                             <a
                                                 href={payPalApprovalUrl}
                                                 target="_blank"
@@ -662,6 +698,10 @@ export default function CheckoutPage() {
                                             >
                                                 Continue to PayPal
                                             </a>
+                                        ) : (
+                                            <p className="text-sm text-gray-600">
+                                                Your PayPal payment is still pending. Please finalize it in your PayPal account or contact support if you need assistance.
+                                            </p>
                                         )}
                                         {!payPalConfigured && payPalApprovalUrl && (
                                             <p className="text-xs text-gray-600">
@@ -690,171 +730,12 @@ export default function CheckoutPage() {
                                 </button>
                             </div>
                         </div>
-                    ) : checkoutSession ? (
-                        <div className="bg-white shadow rounded-xl border border-gray-100 p-8 space-y-6">
-                            <div className="space-y-2">
-                                <h2 className="text-2xl font-semibold text-gray-900">Review & confirm your payment</h2>
-                                <p className="text-sm text-gray-600">
-                                    Complete the PayPal payment below to finalize your order. We’ll email the confirmation once the payment succeeds.
-                                </p>
-                                {payPalOrderId && (
-                                    <p className="text-sm text-gray-700">
-                                        PayPal order reference: <strong>{payPalOrderId}</strong>
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="grid gap-6 lg:grid-cols-2">
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Shipping details</h3>
-                                    <ul className="text-sm text-gray-700 space-y-1">
-                                        <li>
-                                            <strong>Name:</strong> {checkoutSession.shipping.fullName || "—"}
-                                        </li>
-                                        <li>
-                                            <strong>Phone:</strong> {checkoutSession.shipping.phoneNumber || "—"}
-                                        </li>
-                                        <li>
-                                            <strong>Address:</strong> {checkoutSession.shipping.street}, {checkoutSession.shipping.city}, {checkoutSession.shipping.country}
-                                        </li>
-                                        <li>
-                                            <strong>Postal code:</strong> {checkoutSession.shipping.postalCode || "—"}
-                                        </li>
-                                        {checkoutSession.shipping.notes && (
-                                            <li>
-                                                <strong>Notes:</strong> {checkoutSession.shipping.notes}
-                                            </li>
-                                        )}
-                                    </ul>
-                                </div>
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Order summary</h3>
-                                    <ul className="space-y-3 text-sm text-gray-700">
-                                        {sessionItemsWithShipping.map(({ item, shippingCost }) => {
-                                            const jewelry = item.jewelryItem;
-                                            const lineTotal = item.priceAtAddTime * item.quantity;
-                                            return (
-                                                <li key={`session-${item.id}`} className="flex justify-between">
-                                                    <div>
-                                                        <p className="font-medium">{jewelry?.name ?? `Item #${item.jewelryItemId}`}</p>
-                                                        <p className="text-xs text-gray-500">Qty {item.quantity}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p>{formatCurrency(lineTotal)}</p>
-                                                        {shippingCost > 0 && (
-                                                            <p className="text-xs text-gray-500">Shipping {formatCurrency(shippingCost)}</p>
-                                                        )}
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                    <div className="space-y-1 text-sm text-gray-700">
-                                        <div className="flex justify-between">
-                                            <span>Items subtotal</span>
-                                            <span>{formatCurrency(checkoutSession.totals.subtotal)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Shipping</span>
-                                            <span>
-                                                {checkoutSession.totals.shipping > 0
-                                                    ? formatCurrency(checkoutSession.totals.shipping)
-                                                    : "Free"}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t border-gray-200">
-                                            <span>Total</span>
-                                            <span>{formatCurrency(checkoutSession.totals.total)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 border-t border-gray-200 pt-6">
-                                <h3 className="text-lg font-semibold text-gray-900">Payment</h3>
-                                <div className="space-y-1 text-sm text-gray-700">
-                                    <p>
-                                        <strong>Method:</strong> PayPal
-                                    </p>
-                                    <p>
-                                        <strong>Status:</strong> {payPalStatusLabel}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-3">
-                                    {payPalCapturing && (
-                                        <p className="text-sm text-gray-600">Confirming your PayPal payment…</p>
-                                    )}
-                                    {payPalError && (
-                                        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
-                                            {payPalError}
-                                        </div>
-                                    )}
-                                    {shouldRenderPayPalButton && (
-                                        <div className="space-y-2">
-                                            {payPalScriptStatus === "loading" && (
-                                                <p className="text-sm text-gray-600">Loading PayPal checkout…</p>
-                                            )}
-                                            <div ref={payPalContainerRef} className="min-h-[45px]" />
-                                        </div>
-                                    )}
-                                    {payPalApprovalUrl && (
-                                        <a
-                                            href={payPalApprovalUrl}
-                                            target="_blank"
-                                            rel="noreferrer noopener"
-                                            className={`inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
-                                                payPalCapturing ? "opacity-60 pointer-events-none" : ""
-                                            }`}
-                                            style={{ backgroundColor: "#003087" }}
-                                        >
-                                            Continue to PayPal
-                                        </a>
-                                    )}
-                                    {payPalOrderId && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (payPalOrderId) {
-                                                    void finalizePayPalOrder(payPalOrderId);
-                                                }
-                                            }}
-                                            disabled={payPalCapturing}
-                                            className="inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow disabled:opacity-60"
-                                            style={{ backgroundColor: "#6B8C8E" }}
-                                        >
-                                            {payPalCapturing ? "Confirming payment…" : "I've completed my PayPal payment"}
-                                        </button>
-                                    )}
-                                    {!payPalConfigured && payPalApprovalUrl && (
-                                        <p className="text-xs text-gray-600">
-                                            PayPal buttons require a client id. Use the secure link above to complete your checkout.
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setCheckoutSession(null)}
-                                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg text-white font-semibold shadow"
-                                    style={{ backgroundColor: "#6B8C8E" }}
-                                >
-                                    Edit shipping details
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate("/cart")}
-                                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg text-[#6B8C8E] font-semibold border border-[#6B8C8E]"
-                                >
-                                    View cart
-                                </button>
-                            </div>
-                        </div>
                     ) : (
                         <div className="grid gap-8 lg:grid-cols-[minmax(0,_3fr)_minmax(0,_2fr)]">
-                            <form onSubmit={handleSubmit} className="bg-white shadow rounded-xl border border-gray-100 p-6 space-y-6">
+                            <form
+                                onSubmit={(event) => event.preventDefault()}
+                                className="bg-white shadow rounded-xl border border-gray-100 p-6 space-y-6"
+                            >
                                 <h2 className="text-xl font-semibold text-gray-900">Shipping information</h2>
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     <div className="flex flex-col gap-2">
@@ -958,19 +839,64 @@ export default function CheckoutPage() {
                                         placeholder="Share any specific instructions or preferences for delivery."
                                     />
                                 </div>
-                                <button
-                                    type="submit"
-                                    disabled={submitting || !hasItems}
-                                    className="inline-flex items-center justify-center px-5 py-3 rounded-lg text-white font-semibold shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
-                                    style={{ backgroundColor: "#6B8C8E" }}
-                                >
-                                    {submitting ? "Placing your order…" : "Place order"}
-                                </button>
-                                {!hasItems && (
-                                    <p className="text-xs text-red-600">
-                                        Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
+
+                                <div className="space-y-4 border-t border-gray-200 pt-6">
+                                    <h3 className="text-lg font-semibold text-gray-900">Payment</h3>
+                                    <p className="text-sm text-gray-600">
+                                        Pay securely with PayPal after confirming your shipping details.
                                     </p>
-                                )}
+                                    {payPalPreparing && (
+                                        <p className="text-sm text-gray-600">Preparing your PayPal checkout…</p>
+                                    )}
+                                    {payPalCapturing && (
+                                        <p className="text-sm text-gray-600">Confirming your PayPal payment…</p>
+                                    )}
+                                    {canRenderPayPalButtons && payPalScriptStatus === "loading" && (
+                                        <p className="text-sm text-gray-600">Loading PayPal checkout…</p>
+                                    )}
+                                    {payPalError && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                                            {payPalError}
+                                        </div>
+                                    )}
+                                    <div
+                                        ref={payPalContainerRef}
+                                        className={`min-h-[45px] ${!canRenderPayPalButtons ? "opacity-60 pointer-events-none" : ""}`}
+                                    />
+                                    {checkoutSession?.payPalOrderId && (
+                                        <p className="text-xs text-gray-600">
+                                            PayPal order <strong>{checkoutSession.payPalOrderId}</strong> — Status: {payPalStatusLabel}
+                                        </p>
+                                    )}
+                                    {payPalApprovalUrl && (
+                                        <a
+                                            href={payPalApprovalUrl}
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            className={`inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
+                                                payPalCapturing ? "opacity-60 pointer-events-none" : ""
+                                            }`}
+                                            style={{ backgroundColor: "#003087" }}
+                                        >
+                                            Continue to PayPal
+                                        </a>
+                                    )}
+                                    {!payPalConfigured && (
+                                        <p className="text-xs text-red-600">
+                                            PayPal checkout is not configured. Please contact support to complete your purchase.
+                                        </p>
+                                    )}
+                                    {!hasItems && (
+                                        <p className="text-xs text-red-600">
+                                            Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
+                                        </p>
+                                    )}
+                                    {payPalConfigured && hasItems && !isFormComplete && (
+                                        <p className="text-xs text-gray-500">
+                                            Complete all required shipping fields to enable PayPal checkout.
+                                        </p>
+                                    )}
+                                </div>
                             </form>
 
                             <aside className="bg-white shadow rounded-xl border border-gray-100 p-6 h-fit space-y-4">
@@ -980,41 +906,45 @@ export default function CheckoutPage() {
                                         Edit cart
                                     </Link>
                                 </div>
-                                <ul className="space-y-3">
-                                    {cartItemsWithShipping.map(({ item, shippingCost }) => {
-                                        const jewelry = item.jewelryItem;
-                                        const lineTotal = item.priceAtAddTime * item.quantity;
-                                        return (
-                                            <li key={item.id} className="flex justify-between text-sm text-gray-700">
-                                                <div className="pr-4">
-                                                    <p className="font-medium">{jewelry?.name ?? `Item #${item.jewelryItemId}`}</p>
-                                                    <p className="text-xs text-gray-500">Qty {item.quantity}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p>{formatCurrency(lineTotal)}</p>
-                                                    {shippingCost > 0 && (
-                                                        <p className="text-xs text-gray-500">Shipping {formatCurrency(shippingCost)}</p>
-                                                    )}
-                                                </div>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                                {summaryItems.length === 0 ? (
+                                    <p className="text-sm text-gray-600">Your cart is currently empty.</p>
+                                ) : (
+                                    <ul className="space-y-3">
+                                        {summaryItems.map(({ item, shippingCost }) => {
+                                            const jewelry = item.jewelryItem;
+                                            const lineTotal = item.priceAtAddTime * item.quantity;
+                                            return (
+                                                <li key={item.id} className="flex justify-between text-sm text-gray-700">
+                                                    <div className="pr-4">
+                                                        <p className="font-medium">{jewelry?.name ?? `Item #${item.jewelryItemId}`}</p>
+                                                        <p className="text-xs text-gray-500">Qty {item.quantity}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p>{formatCurrency(lineTotal)}</p>
+                                                        {shippingCost > 0 && (
+                                                            <p className="text-xs text-gray-500">Shipping {formatCurrency(shippingCost)}</p>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
                                 <div className="flex items-center justify-between text-sm text-gray-700">
                                     <span>Items subtotal</span>
-                                    <span>{formatCurrency(totals.subtotal)}</span>
+                                    <span>{formatCurrency(summaryTotals.subtotal)}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm text-gray-700">
                                     <span>Estimated shipping</span>
-                                    <span>{totals.shipping > 0 ? formatCurrency(totals.shipping) : "Free"}</span>
+                                    <span>{summaryTotals.shipping > 0 ? formatCurrency(summaryTotals.shipping) : "Free"}</span>
                                 </div>
                                 <hr className="border-gray-200" />
                                 <div className="flex items-center justify-between text-lg font-semibold text-gray-900">
                                     <span>Total</span>
-                                    <span>{formatCurrency(totals.total)}</span>
+                                    <span>{formatCurrency(summaryTotals.total)}</span>
                                 </div>
                                 <p className="text-xs text-gray-500">
-                                    Secure payments are processed after you confirm your order.
+                                    Secure payments are processed via PayPal once you approve the transaction.
                                 </p>
                             </aside>
                         </div>
