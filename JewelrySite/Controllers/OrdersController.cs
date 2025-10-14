@@ -147,6 +147,7 @@ namespace JewelrySite.Controllers
                                         PayPalOrderId = result.PayPalOrderId,
                                         PayPalApprovalUrl = result.PayPalApprovalLink,
                                         PayPalStatus = result.PayPalStatus,
+                                        RequiresPayment = result.RequiresPayment,
                                         Items = result.Items.Select(item => new OrderConfirmationItemDto
                                         {
                                                 JewelryItemId = item.JewelryItemId,
@@ -156,6 +157,11 @@ namespace JewelrySite.Controllers
                                                 LineTotal = item.LineTotal
                                         })
                                 };
+
+                                if (!result.RequiresPayment && result.Order is not null)
+                                {
+                                        response.Order = BuildOrderConfirmation(result.Order);
+                                }
 
                                 return Ok(response);
                         }

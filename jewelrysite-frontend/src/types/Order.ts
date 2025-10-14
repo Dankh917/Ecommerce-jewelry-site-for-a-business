@@ -25,6 +25,8 @@ export interface CheckoutPreparationResponse {
     payPalOrderId: string;
     payPalApprovalUrl?: string | null;
     payPalStatus?: string | null;
+    requiresPayment: boolean;
+    order?: OrderConfirmationResponse | null;
     items: OrderItem[];
 }
 

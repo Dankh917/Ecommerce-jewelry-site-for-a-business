@@ -57,6 +57,8 @@ namespace JewelrySite.DTO
                 public string PayPalOrderId { get; set; } = string.Empty;
                 public string? PayPalApprovalUrl { get; set; }
                 public string? PayPalStatus { get; set; }
+                public bool RequiresPayment { get; set; } = true;
+                public OrderConfirmationDto? Order { get; set; }
                 public IEnumerable<OrderConfirmationItemDto> Items { get; set; } = Enumerable.Empty<OrderConfirmationItemDto>();
         }
 

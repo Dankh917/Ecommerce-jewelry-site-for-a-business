@@ -459,6 +459,8 @@ export default function CheckoutPage() {
                 notes: formData.notes.trim(),
             };
 
+            const paymentMethod = payPalConfigured ? "PayPal" : "Manual";
+
             const payload = {
                 userId,
                 cartId: cart.id,
@@ -469,11 +471,38 @@ export default function CheckoutPage() {
                 street: trimmedData.street,
                 postalCode: trimmedData.postalCode,
                 notes: trimmedData.notes || undefined,
-                paymentMethod: "PayPal",
+                paymentMethod,
             };
 
             const existingItems = cart.items.map((item) => ({ ...item }));
             const preparation = await createOrder(payload);
+
+            if (!preparation.requiresPayment) {
+                if (preparation.order) {
+                    setOrderConfirmation({
+                        order: preparation.order,
+                        shipping: trimmedData,
+                        items: existingItems,
+                        totals: {
+                            subtotal: preparation.order.subtotal,
+                            shipping: preparation.order.shipping,
+                            total: preparation.order.grandTotal,
+                        },
+                    });
+                    setCheckoutSession(null);
+                    setFormData(initialFormState);
+
+                    try {
+                        const refreshedCart = await getCart(userId);
+                        setCart(refreshedCart);
+                    } catch (refreshError) {
+                        console.error("Failed to refresh cart after checkout", refreshError);
+                    }
+                } else {
+                    setError("We were unable to finalize your order. Please try again.");
+                }
+                return;
+            }
 
             setCheckoutSession({
                 shipping: trimmedData,
