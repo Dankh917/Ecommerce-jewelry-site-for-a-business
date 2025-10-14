@@ -41,6 +41,26 @@ namespace JewelrySite.DAL
 
                         var draft = await BuildOrderDraftAsync(userId, request, cancellationToken);
 
+                        if (!_payPalOptions.IsConfigured())
+                        {
+                                var manualOrder = await CreateManualOrderAsync(userId, request, draft, cancellationToken);
+
+                                return new CheckoutPreparationResult(
+                                        draft.Subtotal,
+                                        draft.Shipping,
+                                        draft.Tax,
+                                        draft.Discount,
+                                        draft.GrandTotal,
+                                        draft.CurrencyCode,
+                                        draft.Items,
+                                        string.Empty,
+                                        null,
+                                        null,
+                                        requiresPayment: false,
+                                        manualOrder
+                                );
+                        }
+
                         var payPalRequest = BuildPayPalRequest(draft);
                         var payPalResponse = await _payPalClient.CreateOrderAsync(payPalRequest, cancellationToken);
 
@@ -54,7 +74,9 @@ namespace JewelrySite.DAL
                                 draft.Items,
                                 payPalResponse.Id,
                                 payPalResponse.Status,
-                                payPalResponse.GetApprovalLink()
+                                payPalResponse.GetApprovalLink(),
+                                requiresPayment: true,
+                                Order: null
                         );
                 }
 
@@ -81,6 +103,11 @@ namespace JewelrySite.DAL
                         if (request is null)
                         {
                                 throw new ArgumentNullException(nameof(request));
+                        }
+
+                        if (!_payPalOptions.IsConfigured())
+                        {
+                                throw new InvalidOperationException("PayPal checkout is not available.");
                         }
 
                         if (string.IsNullOrWhiteSpace(request.PayPalOrderId))
@@ -168,6 +195,79 @@ namespace JewelrySite.DAL
                         await SendCheckoutEmailAsync(draft.Cart.User?.Email, order);
 
                         return new OrderCompletionResult(order, request.PayPalOrderId, captureResponse.Status, captureId);
+                }
+
+                private async Task<Order> CreateManualOrderAsync(int userId, CreateOrderRequestDto request, OrderDraftData draft, CancellationToken cancellationToken)
+                {
+                        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+                        var paymentProvider = string.IsNullOrWhiteSpace(request.PaymentMethod)
+                                ? "Manual"
+                                : request.PaymentMethod!.Trim();
+
+                        var paymentReference = string.IsNullOrWhiteSpace(request.PaymentReference)
+                                ? null
+                                : request.PaymentReference!.Trim();
+
+                        var fullName = request.FullName.Trim();
+                        var phone = request.Phone.Trim();
+                        var country = request.Country.Trim();
+                        var city = request.City.Trim();
+                        var street = request.Street.Trim();
+                        var postalCode = request.PostalCode?.Trim();
+                        var notes = string.IsNullOrWhiteSpace(request.PaymentNotes)
+                                ? null
+                                : request.PaymentNotes!.Trim();
+
+                        var order = new Order
+                        {
+                                UserId = userId,
+                                Status = OrderStatus.Pending,
+                                CreatedAt = DateTime.UtcNow,
+                                FullName = fullName,
+                                Phone = phone,
+                                Country = country,
+                                City = city,
+                                Street = street,
+                                PostalCode = postalCode,
+                                Notes = notes,
+                                PaymentProvider = paymentProvider,
+                                PaymentRef = paymentReference,
+                                CurrencyCode = draft.CurrencyCode,
+                                Subtotal = draft.Subtotal,
+                                Shipping = draft.Shipping,
+                                TaxVat = draft.Tax,
+                                DiscountTotal = draft.Discount,
+                                GrandTotal = draft.GrandTotal,
+                        };
+
+                        foreach (var item in draft.Items)
+                        {
+                                order.Items.Add(new OrderItem
+                                {
+                                        JewelryItemId = item.JewelryItemId,
+                                        NameSnapshot = item.Name,
+                                        UnitPrice = item.UnitPrice,
+                                        Quantity = item.Quantity,
+                                        LineTotal = item.LineTotal
+                                });
+                        }
+
+                        _dbContext.Orders.Add(order);
+
+                        var itemsToRemove = draft.Cart.Items.ToList();
+                        if (itemsToRemove.Count > 0)
+                        {
+                                _dbContext.CartItems.RemoveRange(itemsToRemove);
+                                draft.Cart.Items.Clear();
+                        }
+
+                        await _dbContext.SaveChangesAsync(cancellationToken);
+                        await transaction.CommitAsync(cancellationToken);
+
+                        await SendCheckoutEmailAsync(draft.Cart.User?.Email, order);
+
+                        return order;
                 }
 
                 private async Task SendCheckoutEmailAsync(string? recipientEmail, Order order)
@@ -320,7 +420,9 @@ namespace JewelrySite.DAL
                 IReadOnlyList<OrderItemSnapshot> Items,
                 string PayPalOrderId,
                 string? PayPalStatus,
-                string? PayPalApprovalLink);
+                string? PayPalApprovalLink,
+                bool RequiresPayment,
+                Order? Order);
 
         public record OrderCompletionResult(Order Order, string PayPalOrderId, string? PayPalStatus, string? PayPalCaptureId);
 
