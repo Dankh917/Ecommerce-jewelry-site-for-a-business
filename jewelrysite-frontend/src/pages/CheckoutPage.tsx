@@ -159,6 +159,7 @@ export default function CheckoutPage() {
             : null,
         canRenderPayPalButtons
     );
+    const showManualPayPalButton = !shouldRenderPayPalButtons || payPalScriptStatus === "error";
     const payPalApprovalUrl = useMemo(() => {
         const raw = orderConfirmation?.order.payPalApprovalUrl ?? checkoutSession?.payPalApprovalUrl ?? null;
         if (!raw) {
@@ -349,6 +350,123 @@ export default function CheckoutPage() {
         [checkoutSession, userId, setCart, setCheckoutSession, setFormData]
     );
 
+    const preparePayPalCheckout = useCallback(async () => {
+        if (!userId || !cart) {
+            setPayPalError("You need an active cart to start PayPal checkout.");
+            throw new Error("Missing cart or user information");
+        }
+
+        const trimmedData: CheckoutFormData = {
+            fullName: formData.fullName.trim(),
+            phoneNumber: formData.phoneNumber.trim(),
+            country: formData.country.trim(),
+            city: formData.city.trim(),
+            street: formData.street.trim(),
+            postalCode: formData.postalCode.trim(),
+            notes: formData.notes.trim(),
+        };
+
+        const requiredValues = [
+            trimmedData.fullName,
+            trimmedData.phoneNumber,
+            trimmedData.country,
+            trimmedData.city,
+            trimmedData.street,
+            trimmedData.postalCode,
+        ];
+
+        if (requiredValues.some(value => value.length === 0)) {
+            setPayPalError("Please complete all required shipping fields before paying with PayPal.");
+            throw new Error("Shipping details incomplete");
+        }
+
+        if (cart.items.length === 0) {
+            setPayPalError("Your cart is empty. Please add items before checking out.");
+            throw new Error("Cart is empty");
+        }
+
+        setPayPalPreparing(true);
+        setPayPalError(null);
+
+        try {
+            const payload = {
+                userId,
+                cartId: cart.id,
+                fullName: trimmedData.fullName,
+                phoneNumber: trimmedData.phoneNumber,
+                country: trimmedData.country,
+                city: trimmedData.city,
+                street: trimmedData.street,
+                postalCode: trimmedData.postalCode,
+                notes: trimmedData.notes || undefined,
+                paymentMethod: "PayPal",
+            };
+
+            const existingItems = cart.items.map(item => ({ ...item }));
+            const preparation = await createOrder(payload);
+
+            if (!preparation.payPalOrderId) {
+                setPayPalError("PayPal did not return an order id. Please try again.");
+                throw new Error("Missing PayPal order id");
+            }
+
+            setCheckoutSession({
+                shipping: trimmedData,
+                items: existingItems,
+                totals: {
+                    subtotal: preparation.subtotal,
+                    shipping: preparation.shipping,
+                    total: preparation.grandTotal,
+                },
+                cartId: cart.id,
+                payPalOrderId: preparation.payPalOrderId,
+                payPalStatus: preparation.payPalStatus ?? null,
+                payPalApprovalUrl: preparation.payPalApprovalUrl ?? null,
+                currencyCode: preparation.currencyCode,
+            });
+            setFormData(trimmedData);
+
+            return {
+                orderId: preparation.payPalOrderId,
+                approvalUrl: preparation.payPalApprovalUrl ?? null,
+            };
+        } catch (err: unknown) {
+            const message = isAxiosError(err)
+                ? err.response?.data?.message ?? err.response?.data ?? err.message
+                : err instanceof Error
+                  ? err.message
+                  : "Unable to start PayPal checkout.";
+            setPayPalError(typeof message === "string" ? message : "Unable to start PayPal checkout.");
+            throw err instanceof Error ? err : new Error("Unable to start PayPal checkout");
+        } finally {
+            setPayPalPreparing(false);
+        }
+    }, [userId, cart, formData]);
+
+    const [payPalRedirecting, setPayPalRedirecting] = useState(false);
+
+    const handleManualPayPalCheckout = useCallback(async () => {
+        if (payPalPreparing || payPalCapturing || payPalRedirecting) {
+            return;
+        }
+
+        try {
+            setPayPalRedirecting(true);
+            const preparation = await preparePayPalCheckout();
+            if (preparation.approvalUrl) {
+                if (typeof window !== "undefined") {
+                    window.location.href = preparation.approvalUrl;
+                }
+            } else {
+                setPayPalError("PayPal did not return an approval link. Please try again.");
+            }
+        } catch (err) {
+            console.error("Failed to start manual PayPal checkout", err);
+        } finally {
+            setPayPalRedirecting(false);
+        }
+    }, [payPalPreparing, payPalCapturing, payPalRedirecting, preparePayPalCheckout]);
+
     useEffect(() => {
         if (!canRenderPayPalButtons) {
             if (payPalButtonsRef.current) {
@@ -527,6 +645,7 @@ export default function CheckoutPage() {
         checkoutSession?.payPalOrderId,
         closePayPalButtons,
         finalizePayPalOrder,
+        preparePayPalCheckout,
     ]);
 
     const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
