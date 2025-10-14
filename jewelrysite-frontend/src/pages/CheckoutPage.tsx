@@ -142,10 +142,14 @@ export default function CheckoutPage() {
         formData.street,
         formData.postalCode,
     ]);
-    const canAttemptPayPalCheckout = Boolean(!orderConfirmation && hasItems && isFormComplete);
-    const shouldRenderPayPalButtons = Boolean(payPalConfigured && canAttemptPayPalCheckout);
+    const canRenderPayPalButtons = Boolean(
+        payPalConfigured &&
+        !orderConfirmation &&
+        hasItems &&
+        isFormComplete
+    );
     const { status: payPalScriptStatus, error: payPalScriptError } = usePayPalScript(
-        shouldRenderPayPalButtons
+        canRenderPayPalButtons
             ? {
                   clientId: payPalClientId,
                   currency:
@@ -153,7 +157,7 @@ export default function CheckoutPage() {
                   intent: "CAPTURE",
               }
             : null,
-        shouldRenderPayPalButtons
+        canRenderPayPalButtons
     );
     const showManualPayPalButton = !shouldRenderPayPalButtons || payPalScriptStatus === "error";
     const payPalApprovalUrl = useMemo(() => {
@@ -464,7 +468,7 @@ export default function CheckoutPage() {
     }, [payPalPreparing, payPalCapturing, payPalRedirecting, preparePayPalCheckout]);
 
     useEffect(() => {
-        if (!shouldRenderPayPalButtons) {
+        if (!canRenderPayPalButtons) {
             if (payPalButtonsRef.current) {
                 closePayPalButtons();
             }
@@ -500,8 +504,93 @@ export default function CheckoutPage() {
             const buttons = window.paypal.Buttons({
                 style: { layout: "vertical", shape: "rect", color: "gold" },
                 createOrder: async () => {
-                    const preparation = await preparePayPalCheckout();
-                    return preparation.orderId;
+                    if (!userId || !cart) {
+                        setPayPalError("You need an active cart to start PayPal checkout.");
+                        throw new Error("Missing cart or user information");
+                    }
+
+                    const trimmedData: CheckoutFormData = {
+                        fullName: formData.fullName.trim(),
+                        phoneNumber: formData.phoneNumber.trim(),
+                        country: formData.country.trim(),
+                        city: formData.city.trim(),
+                        street: formData.street.trim(),
+                        postalCode: formData.postalCode.trim(),
+                        notes: formData.notes.trim(),
+                    };
+
+                    const requiredValues = [
+                        trimmedData.fullName,
+                        trimmedData.phoneNumber,
+                        trimmedData.country,
+                        trimmedData.city,
+                        trimmedData.street,
+                        trimmedData.postalCode,
+                    ];
+
+                    if (requiredValues.some(value => value.length === 0)) {
+                        setPayPalError("Please complete all required shipping fields before paying with PayPal.");
+                        throw new Error("Shipping details incomplete");
+                    }
+
+                    if (cart.items.length === 0) {
+                        setPayPalError("Your cart is empty. Please add items before checking out.");
+                        throw new Error("Cart is empty");
+                    }
+
+                    setPayPalPreparing(true);
+                    setPayPalError(null);
+
+                    try {
+                        const payload = {
+                            userId,
+                            cartId: cart.id,
+                            fullName: trimmedData.fullName,
+                            phoneNumber: trimmedData.phoneNumber,
+                            country: trimmedData.country,
+                            city: trimmedData.city,
+                            street: trimmedData.street,
+                            postalCode: trimmedData.postalCode,
+                            notes: trimmedData.notes || undefined,
+                            paymentMethod: "PayPal",
+                        };
+
+                        const existingItems = cart.items.map(item => ({ ...item }));
+                        const preparation = await createOrder(payload);
+
+                        if (!preparation.payPalOrderId) {
+                            setPayPalError("PayPal did not return an order id. Please try again.");
+                            throw new Error("Missing PayPal order id");
+                        }
+
+                        setCheckoutSession({
+                            shipping: trimmedData,
+                            items: existingItems,
+                            totals: {
+                                subtotal: preparation.subtotal,
+                                shipping: preparation.shipping,
+                                total: preparation.grandTotal,
+                            },
+                            cartId: cart.id,
+                            payPalOrderId: preparation.payPalOrderId,
+                            payPalStatus: preparation.payPalStatus ?? null,
+                            payPalApprovalUrl: preparation.payPalApprovalUrl ?? null,
+                            currencyCode: preparation.currencyCode,
+                        });
+                        setFormData(trimmedData);
+
+                        return preparation.payPalOrderId;
+                    } catch (err: unknown) {
+                        const message = isAxiosError(err)
+                            ? err.response?.data?.message ?? err.response?.data ?? err.message
+                            : err instanceof Error
+                              ? err.message
+                              : "Unable to start PayPal checkout.";
+                        setPayPalError(typeof message === "string" ? message : "Unable to start PayPal checkout.");
+                        throw err instanceof Error ? err : new Error("Unable to start PayPal checkout");
+                    } finally {
+                        setPayPalPreparing(false);
+                    }
                 },
                 onApprove: async (data: PayPalApproveData) => {
                     const approvedOrderId = data.orderID ?? checkoutSession?.payPalOrderId ?? null;
@@ -547,8 +636,11 @@ export default function CheckoutPage() {
             }
         };
     }, [
-        shouldRenderPayPalButtons,
+        canRenderPayPalButtons,
         payPalScriptStatus,
+        userId,
+        cart,
+        formData,
         payPalCapturing,
         checkoutSession?.payPalOrderId,
         closePayPalButtons,
@@ -872,17 +964,13 @@ export default function CheckoutPage() {
                                     <p className="text-sm text-gray-600">
                                         Pay securely with PayPal after confirming your shipping details.
                                     </p>
-                                    {(payPalPreparing || payPalRedirecting) && (
-                                        <p className="text-sm text-gray-600">
-                                            {payPalRedirecting
-                                                ? "Opening PayPal to finalize your payment…"
-                                                : "Preparing your PayPal checkout…"}
-                                        </p>
+                                    {payPalPreparing && (
+                                        <p className="text-sm text-gray-600">Preparing your PayPal checkout…</p>
                                     )}
                                     {payPalCapturing && (
                                         <p className="text-sm text-gray-600">Confirming your PayPal payment…</p>
                                     )}
-                                    {shouldRenderPayPalButtons && payPalScriptStatus === "loading" && (
+                                    {canRenderPayPalButtons && payPalScriptStatus === "loading" && (
                                         <p className="text-sm text-gray-600">Loading PayPal checkout…</p>
                                     )}
                                     {payPalError && (
@@ -892,23 +980,8 @@ export default function CheckoutPage() {
                                     )}
                                     <div
                                         ref={payPalContainerRef}
-                                        className={`min-h-[45px] ${!shouldRenderPayPalButtons ? "opacity-60 pointer-events-none" : ""}`}
+                                        className={`min-h-[45px] ${!canRenderPayPalButtons ? "opacity-60 pointer-events-none" : ""}`}
                                     />
-                                    {!orderConfirmation && showManualPayPalButton && (
-                                        <button
-                                            type="button"
-                                            onClick={handleManualPayPalCheckout}
-                                            disabled={!canAttemptPayPalCheckout || payPalPreparing || payPalRedirecting || payPalCapturing}
-                                            className={`inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
-                                                !canAttemptPayPalCheckout || payPalPreparing || payPalRedirecting || payPalCapturing
-                                                    ? "opacity-60 cursor-not-allowed"
-                                                    : ""
-                                            }`}
-                                            style={{ backgroundColor: "#003087" }}
-                                        >
-                                            Continue to PayPal
-                                        </button>
-                                    )}
                                     {checkoutSession?.payPalOrderId && (
                                         <p className="text-xs text-gray-600">
                                             PayPal order <strong>{checkoutSession.payPalOrderId}</strong> — Status: {payPalStatusLabel}
@@ -927,15 +1000,9 @@ export default function CheckoutPage() {
                                             Continue to PayPal
                                         </a>
                                     )}
-                                    {payPalScriptStatus === "error" && (
-                                        <p className="text-xs text-gray-600">
-                                            We couldn't load the PayPal buttons. Use the button above to open PayPal in a new window instead.
-                                        </p>
-                                    )}
                                     {!payPalConfigured && (
-                                        <p className="text-xs text-gray-600">
-                                            PayPal buttons require a client id. We will open PayPal in a new window after you submit your
-                                            shipping details.
+                                        <p className="text-xs text-red-600">
+                                            PayPal checkout is not configured. Please contact support to complete your purchase.
                                         </p>
                                     )}
                                     {!hasItems && (
@@ -943,7 +1010,7 @@ export default function CheckoutPage() {
                                             Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
                                         </p>
                                     )}
-                                    {hasItems && !isFormComplete && (
+                                    {payPalConfigured && hasItems && !isFormComplete && (
                                         <p className="text-xs text-gray-500">
                                             Complete all required shipping fields to enable PayPal checkout.
                                         </p>
