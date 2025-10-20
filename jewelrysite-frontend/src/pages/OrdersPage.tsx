@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import { resolveUserId } from "../utils/user";
@@ -9,6 +9,8 @@ import { isAxiosError } from "axios";
 
 export default function OrdersPage() {
     const { user, jwtToken } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
     const userId = useMemo(() => resolveUserId(user, jwtToken), [user, jwtToken]);
 
     const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -17,6 +19,7 @@ export default function OrdersPage() {
     const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
+    const highlightHandledRef = useRef(false);
 
     useEffect(() => {
         if (!userId) {
@@ -114,6 +117,32 @@ export default function OrdersPage() {
         },
         [selectedOrder, userId]
     );
+
+    const highlightOrderId = useMemo(() => {
+        const state = location.state as { highlightOrderId?: number } | null;
+        return state?.highlightOrderId;
+    }, [location.state]);
+
+    useEffect(() => {
+        if (!highlightOrderId || highlightHandledRef.current) {
+            return;
+        }
+
+        if (orders.length === 0) {
+            return;
+        }
+
+        const exists = orders.some(order => order.orderId === highlightOrderId);
+        if (!exists) {
+            highlightHandledRef.current = true;
+            navigate(location.pathname, { replace: true });
+            return;
+        }
+
+        highlightHandledRef.current = true;
+        void handleSelectOrder(highlightOrderId);
+        navigate(location.pathname, { replace: true });
+    }, [highlightOrderId, orders, handleSelectOrder, navigate, location.pathname]);
 
     return (
         <div className="min-h-screen bg-[#F8F9FA]">
