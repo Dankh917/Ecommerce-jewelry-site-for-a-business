@@ -9,6 +9,7 @@ using JewelrySite.DTO;
 using JewelrySite.HelperClasses;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace JewelrySite.DAL
 {
@@ -17,12 +18,14 @@ namespace JewelrySite.DAL
                 private readonly JewerlyStoreDBContext _dbContext;
                 private readonly PayPalClient _payPalClient;
                 private readonly ILogger<OrderService> _logger;
+                private readonly PayPalOptions _payPalOptions;
 
-                public OrderService(JewerlyStoreDBContext dbContext, PayPalClient payPalClient, ILogger<OrderService> logger)
+                public OrderService(JewerlyStoreDBContext dbContext, PayPalClient payPalClient, IOptions<PayPalOptions> payPalOptions, ILogger<OrderService> logger)
                 {
                         _dbContext = dbContext;
                         _payPalClient = payPalClient;
                         _logger = logger;
+                        _payPalOptions = payPalOptions.Value;
                 }
 
                 public async Task<CheckoutPreparationResult> PrepareCheckoutAsync(int userId, CreateOrderRequestDto request, CancellationToken cancellationToken = default)
@@ -236,8 +239,21 @@ namespace JewelrySite.DAL
                         return new OrderDraftData(cart, snapshots, subtotal, shipping, tax, discount, grandTotal, currencyCode);
                 }
 
-                private static PayPalCreateOrderRequest BuildPayPalRequest(OrderDraftData draft)
+                private PayPalCreateOrderRequest BuildPayPalRequest(OrderDraftData draft)
                 {
+                        if (string.IsNullOrWhiteSpace(_payPalOptions.ReturnUrl) || string.IsNullOrWhiteSpace(_payPalOptions.CancelUrl))
+                        {
+                                throw new InvalidOperationException("PayPal return and cancel URLs must be configured.");
+                        }
+
+                        var returnUrl = _payPalOptions.ReturnUrl.Trim();
+                        var cancelUrl = _payPalOptions.CancelUrl.Trim();
+
+                        if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out _) || !Uri.TryCreate(cancelUrl, UriKind.Absolute, out _))
+                        {
+                                throw new InvalidOperationException("PayPal return and cancel URLs must be absolute URLs.");
+                        }
+
                         var purchaseUnit = new PayPalPurchaseUnit
                         {
                                 Amount = new PayPalAmount
@@ -282,7 +298,9 @@ namespace JewelrySite.DAL
                                 ApplicationContext = new PayPalApplicationContext
                                 {
                                         ShippingPreference = "NO_SHIPPING",
-                                        UserAction = "PAY_NOW"
+                                        UserAction = "PAY_NOW",
+                                        ReturnUrl = returnUrl,
+                                        CancelUrl = cancelUrl
                                 }
                         };
                 }
