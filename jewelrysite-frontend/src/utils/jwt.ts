@@ -10,8 +10,9 @@ export function decodeJwtPayload<T extends JwtPayload = JwtPayload>(token: strin
         }
         const base64Url = parts[1];
         const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
         const jsonPayload = decodeURIComponent(
-            atob(base64)
+            atob(paddedBase64)
                 .split("")
                 .map(char => "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2))
                 .join("")
