@@ -58,7 +58,7 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
     const cartPayload = useMemo(
         () =>
             cartItems.map((item) => ({
-                id: String(item.jewelryItemId ?? item.id),
+                id: String(item.id),
                 quantity: String(item.quantity),
             })),
         [cartItems],
