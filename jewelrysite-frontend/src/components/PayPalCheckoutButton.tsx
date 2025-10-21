@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import axios from "axios";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import type { CartItemSummary } from "../types/Cart";
-import { useAuth } from "../context/AuthContext";
+import { http } from "../api/http";
 
 interface PayPalCheckoutButtonProps {
     cartItems: CartItemSummary[];
@@ -53,7 +54,6 @@ const buttonStyle = {
 
 export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalCheckoutButtonProps) {
     const [message, setMessage] = useState<string>("");
-    const { jwtToken } = useAuth();
 
     const cartPayload = useMemo(
         () =>
@@ -64,15 +64,25 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
         [cartItems],
     );
 
-    const authHeaders = useMemo(() => {
-        const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-        };
-        if (jwtToken) {
-            headers.Authorization = `Bearer ${jwtToken}`;
+    const createOrderErrorMessage = (error: unknown) => {
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const details =
+                (error.response?.data as { error?: string } | undefined)?.error ?? error.message ?? "Unknown error";
+            return `Failed to create order${status ? ` (status ${status})` : ""}. ${details}`;
         }
-        return headers;
-    }, [jwtToken]);
+        return (error as Error).message;
+    };
+
+    const captureOrderErrorMessage = (error: unknown) => {
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const details =
+                (error.response?.data as { error?: string } | undefined)?.error ?? error.message ?? "Unknown error";
+            return `Failed to capture order${status ? ` (status ${status})` : ""}. ${details}`;
+        }
+        return (error as Error).message;
+    };
 
     return (
         <PayPalScriptProvider options={scriptOptions}>
@@ -83,19 +93,10 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
                     disabled={disabled}
                     createOrder={async () => {
                         try {
-                            const response = await fetch("/api/paypal/orders", {
-                                method: "POST",
-                                headers: authHeaders,
-                                body: JSON.stringify({
-                                    cart: cartPayload,
-                                }),
+                            const response = await http.post<PayPalOrderResponse>("/api/paypal/orders", {
+                                cart: cartPayload,
                             });
-
-                            if (!response.ok) {
-                                throw new Error(`Failed to create order. Status: ${response.status}`);
-                            }
-
-                            const orderData = (await response.json()) as PayPalOrderResponse;
+                            const orderData = response.data;
 
                             if (orderData.id) {
                                 return orderData.id;
@@ -110,22 +111,16 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
                             throw new Error(errorMessage);
                         } catch (error) {
                             console.error(error);
-                            setMessage(`Could not initiate PayPal Checkout. ${(error as Error).message}`);
-                            throw error;
+                            setMessage(`Could not initiate PayPal Checkout. ${createOrderErrorMessage(error)}`);
+                            throw error instanceof Error ? error : new Error(createOrderErrorMessage(error));
                         }
                     }}
                     onApprove={async (data, actions) => {
                         try {
-                            const response = await fetch(`/api/paypal/orders/${data.orderID}/capture`, {
-                                method: "POST",
-                                headers: authHeaders,
-                            });
-
-                            if (!response.ok) {
-                                throw new Error(`Failed to capture order. Status: ${response.status}`);
-                            }
-
-                            const orderData = (await response.json()) as PayPalOrderResponse;
+                            const response = await http.post<PayPalOrderResponse>(
+                                `/api/paypal/orders/${data.orderID}/capture`,
+                            );
+                            const orderData = response.data;
                             const errorDetail = orderData.details?.[0];
 
                             if (errorDetail?.issue === "INSTRUMENT_DECLINED") {
@@ -151,7 +146,7 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
                             console.log("PayPal capture result", orderData);
                         } catch (error) {
                             console.error(error);
-                            setMessage(`Sorry, your transaction could not be processed. ${(error as Error).message}`);
+                            setMessage(`Sorry, your transaction could not be processed. ${captureOrderErrorMessage(error)}`);
                         }
                     }}
                 />
