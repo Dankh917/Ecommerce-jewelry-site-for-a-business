@@ -446,14 +446,9 @@ export default function CheckoutPage() {
                                         placeholder="Share any specific instructions or preferences for delivery."
                                     />
                                 </div>
-                                <button
-                                    type="submit"
-                                    disabled={submitting || !hasItems}
-                                    className="inline-flex items-center justify-center px-5 py-3 rounded-lg text-white font-semibold shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
-                                    style={{ backgroundColor: "#6B8C8E" }}
-                                >
-                                    {submitting ? "Placing your order…" : "Place order"}
-                                </button>
+                                <p className="text-sm text-gray-600">
+                                    When you&apos;re ready, complete your purchase using PayPal below.
+                                </p>
                                 {!hasItems && (
                                     <p className="text-xs text-red-600">
                                         Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
