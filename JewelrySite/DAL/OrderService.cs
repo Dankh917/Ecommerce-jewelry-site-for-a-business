@@ -1,21 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using JewelrySite.BL;
 using JewelrySite.DTO;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace JewelrySite.DAL
 {
         public class OrderService
         {
                 private readonly JewerlyStoreDBContext _dbContext;
+                private readonly string _paypalBaseUrl;
+                private readonly string _paypalClientId;
+                private readonly string _paypalSecret;
 
-                public OrderService(JewerlyStoreDBContext dbContext)
+                public OrderService(JewerlyStoreDBContext dbContext, IConfiguration configuration)
                 {
                         _dbContext = dbContext;
+                        _paypalBaseUrl = configuration["PayPal:BaseUrl"] ?? string.Empty;
+                        _paypalClientId = configuration["PayPal:ClientId"] ?? string.Empty;
+                        _paypalSecret = configuration["PayPal:Secret"] ?? string.Empty;
                 }
 
                 public async Task<Order> CreateOrderAsync(int userId, CreateOrderRequestDto request, CancellationToken cancellationToken = default)
@@ -145,6 +156,43 @@ namespace JewelrySite.DAL
                                 .AsNoTracking()
                                 .Include(o => o.Items)
                                 .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
+                }
+
+                public async Task<string> GetPayPalAccessTokenAsync(CancellationToken cancellationToken = default)
+                {
+                        if (string.IsNullOrWhiteSpace(_paypalBaseUrl) || string.IsNullOrWhiteSpace(_paypalClientId) || string.IsNullOrWhiteSpace(_paypalSecret))
+                        {
+                                throw new InvalidOperationException("PayPal configuration is missing.");
+                        }
+
+                        string accessToken = string.Empty;
+                        string url = _paypalBaseUrl.TrimEnd('/') + "/v1/oauth2/token";
+
+                        using (var client = new HttpClient())
+                        {
+                                string credentials64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(_paypalClientId + ":" + _paypalSecret));
+
+                                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials64);
+
+                                var requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
+                                {
+                                        Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded")
+                                };
+
+                                var httpResponse = await client.SendAsync(requestMessage, cancellationToken);
+
+                                if (httpResponse.IsSuccessStatusCode)
+                                {
+                                        var strResponse = await httpResponse.Content.ReadAsStringAsync();
+                                        var jsonResponse = JsonNode.Parse(strResponse);
+                                        if (jsonResponse != null)
+                                        {
+                                                accessToken = jsonResponse["access_token"]?.ToString() ?? string.Empty;
+                                        }
+                                }
+                        }
+
+                        return accessToken;
                 }
         }
 }

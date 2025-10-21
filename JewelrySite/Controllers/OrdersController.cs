@@ -164,5 +164,25 @@ namespace JewelrySite.Controllers
                                 return BadRequest(ex.Message);
                         }
                 }
+
+                [HttpGet("paypal-access-token")]
+                public async Task<ActionResult<object>> GetPayPalAccessToken()
+                {
+                        try
+                        {
+                                var accessToken = await _orderService.GetPayPalAccessTokenAsync();
+
+                                if (string.IsNullOrWhiteSpace(accessToken))
+                                {
+                                        return StatusCode(502, "Failed to retrieve PayPal access token.");
+                                }
+
+                                return Ok(new { accessToken });
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                                return BadRequest(ex.Message);
+                        }
+                }
         }
 }
