@@ -1,4 +1,5 @@
 using JewelrySite.DAL;
+using JewelrySite.HelperClasses;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -25,16 +26,19 @@ namespace JewelrySite
 
 
 
-			builder.Services.AddControllers();
+                        builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
             builder.Services.AddDbContext<JewerlyStoreDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionDB")));
 
+                        builder.Services.Configure<PayPalOptions>(builder.Configuration.GetSection("PayPal"));
+                        builder.Services.AddHttpClient();
                         builder.Services.AddScoped<CartService>();
                         builder.Services.AddScoped<OrderService>();
-			builder.Services.AddScoped<JewelryItemService>();
-			builder.Services.AddScoped<AuthService>();
+                        builder.Services.AddScoped<JewelryItemService>();
+                        builder.Services.AddScoped<AuthService>();
+                        builder.Services.AddScoped<PayPalClient>();
 			EmailService.Init(builder.Configuration);
 
 
