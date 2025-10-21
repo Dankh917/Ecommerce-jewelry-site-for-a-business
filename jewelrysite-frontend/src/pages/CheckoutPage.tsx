@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { isAxiosError } from "axios";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
+import PayPalCheckoutButton from "../components/PayPalCheckoutButton";
 import { useAuth } from "../context/AuthContext";
 import { resolveUserId } from "../utils/user";
 import { getCart } from "../api/cart";
@@ -453,6 +454,14 @@ export default function CheckoutPage() {
                                 >
                                     {submitting ? "Placing your order…" : "Place order"}
                                 </button>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
+                                        <span className="h-px flex-1 bg-gray-200" />
+                                        <span>or checkout with</span>
+                                        <span className="h-px flex-1 bg-gray-200" />
+                                    </div>
+                                    <PayPalCheckoutButton cartItems={cart?.items ?? []} disabled={!hasItems || submitting} />
+                                </div>
                                 {!hasItems && (
                                     <p className="text-xs text-red-600">
                                         Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
