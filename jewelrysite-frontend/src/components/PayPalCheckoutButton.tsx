@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import type { CartItemSummary } from "../types/Cart";
+import { useAuth } from "../context/AuthContext";
 
 interface PayPalCheckoutButtonProps {
     cartItems: CartItemSummary[];
@@ -30,8 +31,10 @@ interface PayPalOrderResponse {
     purchase_units?: PayPalPurchaseUnit[];
 }
 
+const paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || "test";
+
 const scriptOptions = {
-    "client-id": "test",
+    "client-id": paypalClientId,
     "enable-funding": "",
     "disable-funding": "venmo,paylater,card",
     "buyer-country": "US",
@@ -50,6 +53,7 @@ const buttonStyle = {
 
 export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalCheckoutButtonProps) {
     const [message, setMessage] = useState<string>("");
+    const { jwtToken } = useAuth();
 
     const cartPayload = useMemo(
         () =>
@@ -60,6 +64,16 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
         [cartItems],
     );
 
+    const authHeaders = useMemo(() => {
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+        };
+        if (jwtToken) {
+            headers.Authorization = `Bearer ${jwtToken}`;
+        }
+        return headers;
+    }, [jwtToken]);
+
     return (
         <PayPalScriptProvider options={scriptOptions}>
             <div className="space-y-2">
@@ -69,11 +83,9 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
                     disabled={disabled}
                     createOrder={async () => {
                         try {
-                            const response = await fetch("/api/orders", {
+                            const response = await fetch("/api/paypal/orders", {
                                 method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
+                                headers: authHeaders,
                                 body: JSON.stringify({
                                     cart: cartPayload,
                                 }),
@@ -104,11 +116,9 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
                     }}
                     onApprove={async (data, actions) => {
                         try {
-                            const response = await fetch(`/api/orders/${data.orderID}/capture`, {
+                            const response = await fetch(`/api/paypal/orders/${data.orderID}/capture`, {
                                 method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
+                                headers: authHeaders,
                             });
 
                             if (!response.ok) {
