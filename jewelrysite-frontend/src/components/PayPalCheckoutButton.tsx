@@ -32,8 +32,8 @@ interface PayPalOrderResponse {
 
 const scriptOptions = {
     "client-id": "test",
-    "enable-funding": "venmo",
-    "disable-funding": "",
+    "enable-funding": "",
+    "disable-funding": "venmo,paylater,card",
     "buyer-country": "US",
     currency: "USD",
     "data-page-type": "product-details",
@@ -64,6 +64,7 @@ export default function PayPalCheckoutButton({ cartItems, disabled }: PayPalChec
         <PayPalScriptProvider options={scriptOptions}>
             <div className="space-y-2">
                 <PayPalButtons
+                    fundingSource="paypal"
                     style={buttonStyle}
                     disabled={disabled}
                     createOrder={async () => {

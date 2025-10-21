@@ -454,14 +454,6 @@ export default function CheckoutPage() {
                                 >
                                     {submitting ? "Placing your order…" : "Place order"}
                                 </button>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
-                                        <span className="h-px flex-1 bg-gray-200" />
-                                        <span>or checkout with</span>
-                                        <span className="h-px flex-1 bg-gray-200" />
-                                    </div>
-                                    <PayPalCheckoutButton cartItems={cart?.items ?? []} disabled={!hasItems || submitting} />
-                                </div>
                                 {!hasItems && (
                                     <p className="text-xs text-red-600">
                                         Your cart is empty. Please return to the <Link to="/catalog" className="underline">catalog</Link> to add items.
@@ -512,6 +504,14 @@ export default function CheckoutPage() {
                                 <p className="text-xs text-gray-500">
                                     Secure payments are processed after you confirm your order.
                                 </p>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
+                                        <span className="h-px flex-1 bg-gray-200" />
+                                        <span>Checkout with PayPal</span>
+                                        <span className="h-px flex-1 bg-gray-200" />
+                                    </div>
+                                    <PayPalCheckoutButton cartItems={cart?.items ?? []} disabled={!hasItems || submitting} />
+                                </div>
                             </aside>
                         </div>
                     )}
