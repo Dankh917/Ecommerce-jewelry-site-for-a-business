@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { defineConfig } from 'vite';
 import plugin from '@vitejs/plugin-react';
 
@@ -6,5 +8,10 @@ export default defineConfig({
     plugins: [plugin()],
     server: {
         port: 51600,
-    }
+    },
+    resolve: {
+        alias: {
+            '@paypal/react-paypal-js': '/src/lib/paypal/index.tsx',
+        },
+    },
 })

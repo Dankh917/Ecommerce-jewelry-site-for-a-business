@@ -7,6 +7,12 @@ import { useAuth } from "../context/AuthContext";
 import { resolveUserId } from "../utils/user";
 import { getCart } from "../api/cart";
 import { createOrder } from "../api/orders";
+import { getPayPalClientConfig } from "../api/config";
+import {
+    PayPalButtons,
+    PayPalScriptProvider,
+    type ReactPayPalScriptOptions,
+} from "@paypal/react-paypal-js";
 import type { CartItemSummary, CartResponse } from "../types/Cart";
 import type { OrderConfirmationResponse } from "../types/Order";
 
@@ -53,6 +59,9 @@ export default function CheckoutPage() {
     const [formData, setFormData] = useState<CheckoutFormData>(initialFormState);
     const [submitting, setSubmitting] = useState(false);
     const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
+    const [paypalClientId, setPaypalClientId] = useState<string | null>(null);
+    const [paypalError, setPaypalError] = useState<string | null>(null);
+    const [paypalLoading, setPaypalLoading] = useState(true);
 
     const calculateTotals = useCallback((items: CartItemSummary[]) => {
         const subtotalValue = items.reduce((acc, item) => acc + item.priceAtAddTime * item.quantity, 0);
@@ -68,6 +77,16 @@ export default function CheckoutPage() {
     }, []);
 
     const totals = useMemo(() => calculateTotals(cart?.items ?? []), [cart, calculateTotals]);
+
+    const paypalOptions = useMemo<ReactPayPalScriptOptions | null>(() => {
+        if (!paypalClientId) {
+            return null;
+        }
+        return {
+            clientId: paypalClientId,
+            components: "buttons",
+        } satisfies ReactPayPalScriptOptions;
+    }, [paypalClientId]);
 
     const formatCurrency = useCallback((value: number) => {
         return value.toLocaleString(undefined, {
@@ -153,6 +172,30 @@ export default function CheckoutPage() {
             active = false;
         };
     }, [userId, navigate, location.pathname]);
+
+    useEffect(() => {
+        let active = true;
+        setPaypalLoading(true);
+        setPaypalError(null);
+
+        getPayPalClientConfig()
+            .then((config) => {
+                if (!active) return;
+                setPaypalClientId(config.clientId);
+            })
+            .catch(() => {
+                if (!active) return;
+                setPaypalError("PayPal checkout is currently unavailable.");
+            })
+            .finally(() => {
+                if (!active) return;
+                setPaypalLoading(false);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
@@ -503,6 +546,47 @@ export default function CheckoutPage() {
                                 <p className="text-xs text-gray-500">
                                     Secure payments are processed after you confirm your order.
                                 </p>
+                                <div className="pt-4 border-t border-gray-200 space-y-3">
+                                    <h3 className="text-sm font-semibold text-gray-900">Pay with PayPal</h3>
+                                    {paypalLoading ? (
+                                        <p className="text-xs text-gray-500">Loading PayPal checkout…</p>
+                                    ) : paypalError ? (
+                                        <p className="text-xs text-red-600">{paypalError}</p>
+                                    ) : !paypalOptions ? (
+                                        <p className="text-xs text-gray-500">PayPal checkout is not configured.</p>
+                                    ) : hasItems ? (
+                                        <PayPalScriptProvider options={paypalOptions}>
+                                            <PayPalButtons
+                                                style={{ layout: "vertical", shape: "rect", color: "gold" }}
+                                                createOrder={(_data: unknown, actions: any) => {
+                                                    if (!actions?.order || typeof actions.order.create !== "function") {
+                                                        return Promise.reject(new Error("Unable to initiate PayPal order."));
+                                                    }
+                                                    const value = totals.total.toFixed(2);
+                                                    return actions.order.create({
+                                                        purchase_units: [
+                                                            {
+                                                                amount: {
+                                                                    currency_code: "USD",
+                                                                    value,
+                                                                },
+                                                            },
+                                                        ],
+                                                    });
+                                                }}
+                                                onApprove={async (_data: unknown, actions: any) => {
+                                                    try {
+                                                        await actions?.order?.capture?.();
+                                                    } catch (err) {
+                                                        console.error("PayPal capture failed", err);
+                                                    }
+                                                }}
+                                            />
+                                        </PayPalScriptProvider>
+                                    ) : (
+                                        <p className="text-xs text-gray-500">Add items to your cart to enable PayPal checkout.</p>
+                                    )}
+                                </div>
                             </aside>
                         </div>
                     )}
