@@ -9,12 +9,12 @@ import type {
 } from "../types/Order";
 
 export async function createOrder(payload: CreateOrderPayload): Promise<CheckoutPreparationResponse> {
-    const res = await http.post<CheckoutPreparationResponse>("/api/Orders", payload);
+    const res = await http.post<CheckoutPreparationResponse>("/api/paypal/create-order", payload);
     return res.data;
 }
 
 export async function completeOrder(payload: CompleteOrderPayload): Promise<OrderConfirmationResponse> {
-    const res = await http.post<OrderConfirmationResponse>("/api/Orders/complete", payload);
+    const res = await http.post<OrderConfirmationResponse>("/api/paypal/capture-order", payload);
     return res.data;
 }
 
