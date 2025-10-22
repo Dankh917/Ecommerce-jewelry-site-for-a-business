@@ -16,6 +16,12 @@ import {
 import type { CartItemSummary, CartResponse } from "../types/Cart";
 import type { OrderConfirmationResponse } from "../types/Order";
 
+type PayPalOrderActions = {
+    order?: {
+        capture?: () => Promise<unknown>;
+    };
+};
+
 interface CheckoutFormData {
     fullName: string;
     phoneNumber: string;
@@ -554,82 +560,85 @@ export default function CheckoutPage() {
                                     <h3 className="text-sm font-semibold text-gray-900">Pay with PayPal</h3>
                                     {paypalLoading ? (
                                         <p className="text-xs text-gray-500">Loading PayPal checkout…</p>
-                                    ) : paypalError ? (
-                                        <p className="text-xs text-red-600">{paypalError}</p>
                                     ) : !paypalOptions ? (
                                         <p className="text-xs text-gray-500">PayPal checkout is not configured.</p>
                                     ) : hasItems ? (
-                                        <PayPalScriptProvider options={paypalOptions}>
-                                            <PayPalButtons
-                                                style={{ layout: "vertical", shape: "rect", color: "gold" }}
-                                                createOrder={async () => {
-                                                    if (!hasItems) {
-                                                        const error = "Your cart is empty.";
-                                                        setPaypalError(error);
-                                                        throw new Error(error);
-                                                    }
-
-                                                    if (!paypalBaseUrl) {
-                                                        const error = "PayPal checkout is not configured.";
-                                                        setPaypalError(error);
-                                                        throw new Error(error);
-                                                    }
-
-                                                    setPaypalError(null);
-
-                                                    try {
-                                                        const accessToken = await getPayPalAccessToken();
-                                                        if (!accessToken) {
-                                                            throw new Error("PayPal access token is unavailable.");
+                                        <div className="space-y-2">
+                                            {paypalError && (
+                                                <p className="text-xs text-red-600">{paypalError}</p>
+                                            )}
+                                            <PayPalScriptProvider options={paypalOptions}>
+                                                <PayPalButtons
+                                                    style={{ layout: "vertical", shape: "rect", color: "gold" }}
+                                                    createOrder={async () => {
+                                                        if (!hasItems) {
+                                                            const error = "Your cart is empty.";
+                                                            setPaypalError(error);
+                                                            throw new Error(error);
                                                         }
 
-                                                        const normalizedBaseUrl = paypalBaseUrl.replace(/\/+$/, "");
-                                                        const response = await fetch(`${normalizedBaseUrl}/v2/checkout/orders`, {
-                                                            method: "POST",
-                                                            headers: {
-                                                                "Content-Type": "application/json",
-                                                                Authorization: `Bearer ${accessToken}`,
-                                                            },
-                                                            body: JSON.stringify({
-                                                                intent: "CAPTURE",
-                                                                purchase_units: [
-                                                                    {
-                                                                        amount: {
-                                                                            currency_code: "USD",
-                                                                            value: totals.total.toFixed(2),
+                                                        if (!paypalBaseUrl) {
+                                                            const error = "PayPal checkout is not configured.";
+                                                            setPaypalError(error);
+                                                            throw new Error(error);
+                                                        }
+
+                                                        setPaypalError(null);
+
+                                                        try {
+                                                            const accessToken = await getPayPalAccessToken();
+                                                            if (!accessToken) {
+                                                                throw new Error("PayPal access token is unavailable.");
+                                                            }
+
+                                                            const normalizedBaseUrl = paypalBaseUrl.replace(/\/+$/, "");
+                                                            const response = await fetch(`${normalizedBaseUrl}/v2/checkout/orders`, {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    "Content-Type": "application/json",
+                                                                    Authorization: `Bearer ${accessToken}`,
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    intent: "CAPTURE",
+                                                                    purchase_units: [
+                                                                        {
+                                                                            amount: {
+                                                                                currency_code: "USD",
+                                                                                value: totals.total.toFixed(2),
+                                                                            },
                                                                         },
-                                                                    },
-                                                                ],
-                                                            }),
-                                                        });
+                                                                    ],
+                                                                }),
+                                                            });
 
-                                                        if (!response.ok) {
-                                                            throw new Error("PayPal create order request failed.");
+                                                            if (!response.ok) {
+                                                                throw new Error("PayPal create order request failed.");
+                                                            }
+
+                                                            const order = await response.json();
+                                                            if (!order?.id || typeof order.id !== "string") {
+                                                                throw new Error("PayPal did not return an order id.");
+                                                            }
+
+                                                            return order.id;
+                                                        } catch (err) {
+                                                            console.error("Failed to create PayPal order", err);
+                                                            setPaypalError("Unable to start PayPal checkout. Please try again.");
+                                                            throw err instanceof Error
+                                                                ? err
+                                                                : new Error("Unable to start PayPal checkout.");
                                                         }
-
-                                                        const order = await response.json();
-                                                        if (!order?.id || typeof order.id !== "string") {
-                                                            throw new Error("PayPal did not return an order id.");
+                                                    }}
+                                                    onApprove={async (_data: unknown, actions: PayPalOrderActions) => {
+                                                        try {
+                                                            await actions?.order?.capture?.();
+                                                        } catch (err) {
+                                                            console.error("PayPal capture failed", err);
                                                         }
-
-                                                        return order.id;
-                                                    } catch (err) {
-                                                        console.error("Failed to create PayPal order", err);
-                                                        setPaypalError("Unable to start PayPal checkout. Please try again.");
-                                                        throw err instanceof Error
-                                                            ? err
-                                                            : new Error("Unable to start PayPal checkout.");
-                                                    }
-                                                }}
-                                                onApprove={async (_data: unknown, actions: any) => {
-                                                    try {
-                                                        await actions?.order?.capture?.();
-                                                    } catch (err) {
-                                                        console.error("PayPal capture failed", err);
-                                                    }
-                                                }}
-                                            />
-                                        </PayPalScriptProvider>
+                                                    }}
+                                                />
+                                            </PayPalScriptProvider>
+                                        </div>
                                     ) : (
                                         <p className="text-xs text-gray-500">Add items to your cart to enable PayPal checkout.</p>
                                     )}
