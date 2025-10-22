@@ -20,12 +20,19 @@ namespace JewelrySite.Controllers
                 public ActionResult<object> GetPayPalClientId()
                 {
                         string? clientId = _configuration["PayPal:ClientId"];
+                        string? baseUrl = _configuration["PayPal:BaseUrl"];
+
                         if (string.IsNullOrWhiteSpace(clientId))
                         {
                                 return NotFound("PayPal client id is not configured.");
                         }
 
-                        return Ok(new { clientId });
+                        if (string.IsNullOrWhiteSpace(baseUrl))
+                        {
+                                return NotFound("PayPal base url is not configured.");
+                        }
+
+                        return Ok(new { clientId, baseUrl });
                 }
         }
 }

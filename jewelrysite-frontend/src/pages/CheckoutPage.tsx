@@ -6,7 +6,7 @@ import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import { resolveUserId } from "../utils/user";
 import { getCart } from "../api/cart";
-import { createOrder } from "../api/orders";
+import { createOrder, getPayPalAccessToken } from "../api/orders";
 import { getPayPalClientConfig } from "../api/config";
 import {
     PayPalButtons,
@@ -60,6 +60,7 @@ export default function CheckoutPage() {
     const [submitting, setSubmitting] = useState(false);
     const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
     const [paypalClientId, setPaypalClientId] = useState<string | null>(null);
+    const [paypalBaseUrl, setPaypalBaseUrl] = useState<string | null>(null);
     const [paypalError, setPaypalError] = useState<string | null>(null);
     const [paypalLoading, setPaypalLoading] = useState(true);
 
@@ -182,9 +183,12 @@ export default function CheckoutPage() {
             .then((config) => {
                 if (!active) return;
                 setPaypalClientId(config.clientId);
+                setPaypalBaseUrl(config.baseUrl);
+                setPaypalError(null);
             })
             .catch(() => {
                 if (!active) return;
+                setPaypalBaseUrl(null);
                 setPaypalError("PayPal checkout is currently unavailable.");
             })
             .finally(() => {
@@ -558,21 +562,64 @@ export default function CheckoutPage() {
                                         <PayPalScriptProvider options={paypalOptions}>
                                             <PayPalButtons
                                                 style={{ layout: "vertical", shape: "rect", color: "gold" }}
-                                                createOrder={(_data: unknown, actions: any) => {
-                                                    if (!actions?.order || typeof actions.order.create !== "function") {
-                                                        return Promise.reject(new Error("Unable to initiate PayPal order."));
+                                                createOrder={async () => {
+                                                    if (!hasItems) {
+                                                        const error = "Your cart is empty.";
+                                                        setPaypalError(error);
+                                                        throw new Error(error);
                                                     }
-                                                    const value = totals.total.toFixed(2);
-                                                    return actions.order.create({
-                                                        purchase_units: [
-                                                            {
-                                                                amount: {
-                                                                    currency_code: "USD",
-                                                                    value,
-                                                                },
+
+                                                    if (!paypalBaseUrl) {
+                                                        const error = "PayPal checkout is not configured.";
+                                                        setPaypalError(error);
+                                                        throw new Error(error);
+                                                    }
+
+                                                    setPaypalError(null);
+
+                                                    try {
+                                                        const accessToken = await getPayPalAccessToken();
+                                                        if (!accessToken) {
+                                                            throw new Error("PayPal access token is unavailable.");
+                                                        }
+
+                                                        const normalizedBaseUrl = paypalBaseUrl.replace(/\/+$/, "");
+                                                        const response = await fetch(`${normalizedBaseUrl}/v2/checkout/orders`, {
+                                                            method: "POST",
+                                                            headers: {
+                                                                "Content-Type": "application/json",
+                                                                Authorization: `Bearer ${accessToken}`,
                                                             },
-                                                        ],
-                                                    });
+                                                            body: JSON.stringify({
+                                                                intent: "CAPTURE",
+                                                                purchase_units: [
+                                                                    {
+                                                                        amount: {
+                                                                            currency_code: "USD",
+                                                                            value: totals.total.toFixed(2),
+                                                                        },
+                                                                    },
+                                                                ],
+                                                            }),
+                                                        });
+
+                                                        if (!response.ok) {
+                                                            throw new Error("PayPal create order request failed.");
+                                                        }
+
+                                                        const order = await response.json();
+                                                        if (!order?.id || typeof order.id !== "string") {
+                                                            throw new Error("PayPal did not return an order id.");
+                                                        }
+
+                                                        return order.id;
+                                                    } catch (err) {
+                                                        console.error("Failed to create PayPal order", err);
+                                                        setPaypalError("Unable to start PayPal checkout. Please try again.");
+                                                        throw err instanceof Error
+                                                            ? err
+                                                            : new Error("Unable to start PayPal checkout.");
+                                                    }
                                                 }}
                                                 onApprove={async (_data: unknown, actions: any) => {
                                                     try {
