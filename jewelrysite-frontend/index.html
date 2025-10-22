@@ -8,6 +8,41 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function loadPayPalSdk() {
+        try {
+          fetch("/api/config/paypal-client-id")
+            .then((response) => (response.ok ? response.json() : null))
+            .then((data) => {
+              if (!data || !data.clientId) {
+                return;
+              }
+
+              var existingScript = document.querySelector(
+                'script[src^="https://www.paypal.com/sdk/js"]'
+              );
+              if (existingScript) {
+                return;
+              }
+
+              var params = new URLSearchParams({
+                "client-id": data.clientId,
+                components: "buttons",
+              });
+              var script = document.createElement("script");
+              script.src = "https://www.paypal.com/sdk/js?" + params.toString();
+              script.async = true;
+              script.dataset.sdkIntegrationSource = "react-paypal-js";
+              document.head.appendChild(script);
+            })
+            .catch(() => {
+              // ignored – the React integration will attempt to load the SDK if needed
+            });
+        } catch (error) {
+          // ignored – failure to preload the SDK should not block the app from rendering
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

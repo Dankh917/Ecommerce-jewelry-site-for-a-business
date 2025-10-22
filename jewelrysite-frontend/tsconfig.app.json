@@ -21,7 +21,12 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "baseUrl": "./",
+    "paths": {
+      "@paypal/react-paypal-js": ["src/lib/paypal/index.tsx"],
+      "@paypal/react-paypal-js/*": ["src/lib/paypal/*"]
+    }
   },
   "include": ["src"]
 }
