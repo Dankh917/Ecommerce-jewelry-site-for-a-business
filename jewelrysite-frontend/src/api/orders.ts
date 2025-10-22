@@ -11,6 +11,11 @@ export async function createOrder(payload: CreateOrderPayload): Promise<OrderCon
     return res.data;
 }
 
+export async function getPayPalAccessToken(): Promise<string> {
+    const res = await http.get<{ accessToken: string }>("/api/Orders/paypal-access-token");
+    return res.data.accessToken;
+}
+
 export async function getOrders(userId?: number): Promise<OrderSummary[]> {
     const res = await http.get<OrderSummary[]>("/api/Orders", {
         params: userId ? { userId } : undefined,
