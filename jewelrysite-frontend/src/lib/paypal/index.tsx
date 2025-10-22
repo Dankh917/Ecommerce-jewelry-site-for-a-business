@@ -115,7 +115,7 @@ export function PayPalScriptProvider({ options, children }: PropsWithChildren<{ 
     const [status, setStatus] = useState<ScriptStatus>("pending");
     const [error, setError] = useState<Error | null>(null);
 
-    const normalizedOptions = useMemo(() => options, [options]);
+    const normalizedOptions = useMemo(() => ({ ...options }), [options]);
 
     useEffect(() => {
         let cancelled = false;
@@ -171,7 +171,7 @@ export function PayPalButtons(props: PayPalButtonsComponentProps) {
             return;
         }
 
-        const buttonInstance = window.paypal.Buttons(props);
+        const buttonInstance = window.paypal.Buttons({ ...props });
         let cancelled = false;
 
         buttonInstance
