@@ -23,11 +23,18 @@ export interface PayPalButtonsInstance {
     close(): Promise<void> | void;
 }
 
+export interface PayPalButtonsActions {
+    enable(): Promise<void> | void;
+    disable(): Promise<void> | void;
+}
+
 export interface PayPalButtonsConfig {
     style?: Record<string, unknown>;
     createOrder?: () => string | Promise<string>;
     onApprove?: (data: PayPalApproveData) => void | Promise<void>;
+    onCancel?: () => void;
     onError?: (err: unknown) => void;
+    onInit?: (data: unknown, actions: PayPalButtonsActions) => void | Promise<void>;
 }
 
 declare global {

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -14,11 +13,11 @@ namespace JewelrySite.Controllers
         [Route("api/[controller]")]
         [ApiController]
         [Authorize(Roles = "Customer,Admin")]
-        public class OrdersController : ControllerBase
+        public class PayPalController : ControllerBase
         {
                 private readonly OrderService _orderService;
 
-                public OrdersController(OrderService orderService)
+                public PayPalController(OrderService orderService)
                 {
                         _orderService = orderService;
                 }
@@ -53,75 +52,8 @@ namespace JewelrySite.Controllers
                         return true;
                 }
 
-                [HttpGet]
-                public async Task<ActionResult<IEnumerable<OrderSummaryDto>>> GetOrders(int? userId)
-                {
-                        if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
-                        {
-                                return error!;
-                        }
-
-                        var orders = await _orderService.GetOrdersForUserAsync(resolvedUserId);
-                        var response = orders.Select(order => new OrderSummaryDto
-                        {
-                                OrderId = order.Id,
-                                CreatedAt = order.CreatedAt,
-                                Status = order.Status,
-                                GrandTotal = order.GrandTotal,
-                                CurrencyCode = order.CurrencyCode,
-                                ItemCount = order.Items.Sum(item => item.Quantity)
-                        });
-
-                        return Ok(response);
-                }
-
-                [HttpGet("{orderId:int}")]
-                public async Task<ActionResult<OrderDetailDto>> GetOrder(int orderId, int? userId)
-                {
-                        if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
-                        {
-                                return error!;
-                        }
-
-                        var order = await _orderService.GetOrderForUserAsync(resolvedUserId, orderId);
-                        if (order is null)
-                        {
-                                return NotFound();
-                        }
-
-                        var confirmation = OrderResponseFactory.BuildOrderConfirmation(order);
-                        var response = new OrderDetailDto
-                        {
-                                OrderId = confirmation.OrderId,
-                                CreatedAt = confirmation.CreatedAt,
-                                Status = confirmation.Status,
-                                GrandTotal = confirmation.GrandTotal,
-                                CurrencyCode = confirmation.CurrencyCode,
-                                ItemCount = order.Items.Sum(item => item.Quantity),
-                                Subtotal = confirmation.Subtotal,
-                                Shipping = confirmation.Shipping,
-                                TaxVat = confirmation.TaxVat,
-                                DiscountTotal = confirmation.DiscountTotal,
-                                FullName = order.FullName,
-                                Phone = order.Phone,
-                                Country = order.Country,
-                                City = order.City,
-                                Street = order.Street,
-                                PostalCode = order.PostalCode,
-                                Notes = order.Notes,
-                                Items = confirmation.Items,
-                                PaymentProvider = confirmation.PaymentProvider,
-                                PaymentReference = confirmation.PaymentReference,
-                                PayPalOrderId = confirmation.PayPalOrderId,
-                                PayPalCaptureId = confirmation.PayPalCaptureId,
-                                PayPalStatus = confirmation.PayPalStatus
-                        };
-
-                        return Ok(response);
-                }
-
-                [HttpPost]
-                public async Task<ActionResult<CheckoutPreparationDto>> CreateOrder([FromBody] CreateOrderRequestDto request, int? userId)
+                [HttpPost("create-order")]
+                public async Task<ActionResult<CheckoutPreparationDto>> CreatePayPalOrder([FromBody] CreateOrderRequestDto request, int? userId)
                 {
                         if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
                         {
@@ -135,7 +67,7 @@ namespace JewelrySite.Controllers
 
                         try
                         {
-                                CheckoutPreparationResult result = await _orderService.PrepareCheckoutAsync(resolvedUserId, request);
+                                var result = await _orderService.PrepareCheckoutAsync(resolvedUserId, request);
                                 var response = new CheckoutPreparationDto
                                 {
                                         Subtotal = result.Subtotal,
@@ -165,8 +97,8 @@ namespace JewelrySite.Controllers
                         }
                 }
 
-                [HttpPost("complete")]
-                public async Task<ActionResult<OrderConfirmationDto>> CompleteOrder([FromBody] CompleteOrderRequestDto request, int? userId)
+                [HttpPost("capture-order")]
+                public async Task<ActionResult<OrderConfirmationDto>> CapturePayPalOrder([FromBody] CompleteOrderRequestDto request, int? userId)
                 {
                         if (!TryResolveAuthorizedUserId(userId, out int resolvedUserId, out ActionResult? error))
                         {
@@ -187,6 +119,7 @@ namespace JewelrySite.Controllers
                                         completionResult.PayPalStatus,
                                         null,
                                         completionResult.PayPalCaptureId);
+
                                 return Ok(response);
                         }
                         catch (InvalidOperationException ex)
@@ -194,7 +127,5 @@ namespace JewelrySite.Controllers
                                 return BadRequest(ex.Message);
                         }
                 }
-
         }
 }
-
