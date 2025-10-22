@@ -164,7 +164,8 @@ namespace JewelrySite.Controllers
                                 return BadRequest(ex.Message);
                         }
                 }
-
+                
+                [AllowAnonymous]
                 [HttpGet("paypal-access-token")]
                 public async Task<ActionResult<object>> GetPayPalAccessToken()
                 {
