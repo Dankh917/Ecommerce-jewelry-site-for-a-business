@@ -15,6 +15,7 @@ export interface ReactPayPalScriptOptions {
     clientId: string;
     components?: string;
     currency?: string;
+    intent?: "capture" | "authorize";
 }
 
 interface PayPalScriptContextValue {
@@ -52,6 +53,9 @@ function buildScriptUrl(options: ReactPayPalScriptOptions): string {
     params.set("components", options.components ?? "buttons");
     if (options.currency) {
         params.set("currency", options.currency);
+    }
+    if (options.intent) {
+        params.set("intent", options.intent);
     }
     return `https://www.paypal.com/sdk/js?${params.toString()}`;
 }

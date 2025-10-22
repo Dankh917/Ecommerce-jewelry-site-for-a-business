@@ -92,6 +92,8 @@ export default function CheckoutPage() {
         return {
             clientId: paypalClientId,
             components: "buttons",
+            currency: "USD",
+            intent: "capture",
         } satisfies ReactPayPalScriptOptions;
     }, [paypalClientId]);
 
