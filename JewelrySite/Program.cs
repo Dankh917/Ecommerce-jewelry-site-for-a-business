@@ -35,6 +35,7 @@ namespace JewelrySite
             builder.Services.AddDbContext<JewerlyStoreDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionDB")));
 
                         builder.Services.Configure<PayPalOptions>(builder.Configuration.GetSection("PayPal"));
+                        builder.Services.AddHttpContextAccessor();
                         builder.Services.AddHttpClient("PayPal", (sp, client) =>
                         {
                                 var options = sp.GetRequiredService<IOptions<PayPalOptions>>().Value;
